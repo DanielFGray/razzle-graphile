@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  db:
+    env_file: .env
+    image: postgres:alpine
+    volumes:
+      # - ./pgscripts:/docker-entrypoint-initdb.d
+      # - ./data:/var/lib/postgresql/data
+      # - /var/run/postgresql:/var/run/postgresql
+    networks:
+      - appnet
+    ports:
+      - 5432:5432
+
+networks:
+  appnet:
+

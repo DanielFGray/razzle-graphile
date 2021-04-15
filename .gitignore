@@ -1,0 +1,6 @@
+node_modules
+build
+cache
+schema.gql
+codegen.ts
+.env

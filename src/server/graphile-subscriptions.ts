@@ -68,8 +68,8 @@ const SubscriptionsPlugin = makeExtendSchemaPlugin(build => {
       extend type Subscription {
         """Triggered when the logged in user's record is updated in some way."""
         currentUserUpdated: UserSubscriptionPayload @pgSubscription(topic: ${embed(
-          currentUserTopicFromContext,
-        )})
+    currentUserTopicFromContext,
+  )})
       }
     `,
     resolvers: {

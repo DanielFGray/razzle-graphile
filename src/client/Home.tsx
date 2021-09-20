@@ -1,6 +1,8 @@
 import React from 'react'
+import { useSharedQuery } from '../generated-hooks'
 
 export default function Home() {
+  const query = useSharedQuery()
   return (
     <div className="Home">
       <div>
@@ -21,6 +23,7 @@ export default function Home() {
           <a href="https://palmer.chat">Community Slack</a>
         </li>
       </ul>
+      <pre>{JSON.stringify(query.data, null, 2)}</pre>
     </div>
   )
 }

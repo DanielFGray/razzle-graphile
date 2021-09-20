@@ -1,8 +1,6 @@
 import { GraphQLError } from 'graphql'
-import { camelCase, template, TemplateExecutor } from 'lodash'
+import { camelCase } from 'lodash'
 import type { ErrorRequestHandler } from 'express'
-import fs from 'fs'
-import path from 'path'
 
 const isDev = process.env.NODE_ENV === 'development'
 const isTest = process.env.NODE_ENV === 'test'
@@ -49,20 +47,20 @@ function getErrorPage({ message }: ParsedError) {
 const ERROR_PROPERTIES_TO_EXPOSE =
   isDev || isTest
     ? [
-        'code',
-        'severity',
-        'detail',
-        'hint',
-        'positon',
-        'internalPosition',
-        'internalQuery',
-        'where',
-        'schema',
-        'table',
-        'column',
-        'dataType',
-        'constraint',
-      ]
+      'code',
+      'severity',
+      'detail',
+      'hint',
+      'positon',
+      'internalPosition',
+      'internalQuery',
+      'where',
+      'schema',
+      'table',
+      'column',
+      'dataType',
+      'constraint',
+    ]
     : ['code']
 
 const pluck = (err: any): { [key: string]: any } => {
@@ -70,7 +68,7 @@ const pluck = (err: any): { [key: string]: any } => {
     const value =
       key === 'code'
         ? // err.errcode is equivalent to err.code; replace it
-          err.code || err.errcode
+        err.code || err.errcode
         : err[key]
     if (value != null) {
       memo[key] = value
@@ -127,7 +125,7 @@ function conflictFieldsFromError(err: any) {
   return undefined
 }
 
-export function handleErrors(errors: ReadonlyArray<GraphQLError>) {
+export function handleErrors(errors: Array<GraphQLError>) {
   return errors.map(error => {
     const { message: rawMessage, locations, path, originalError } = error
     const code = originalError ? originalError['code'] : null
@@ -156,21 +154,21 @@ export const errorRequestHandler: ErrorRequestHandler = (error, _req, res, next)
     }
     res.status(parsedError.status)
     res.format({
-      'application/json': function () {
+      json() {
         res.send({
           errors: [{ message: errorMessageString, code: parsedError.code }],
         })
       },
 
-      'text/html': function () {
+      html() {
         res.send(getErrorPage(parsedError))
       },
 
-      'text/plain': function () {
+      text() {
         res.send(errorMessageString)
       },
 
-      default: function () {
+      default() {
         // log the request and respond with 406
         res.status(406).send('Not Acceptable')
       },

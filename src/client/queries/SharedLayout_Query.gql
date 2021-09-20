@@ -12,16 +12,4 @@ fragment SharedLayout_User on User {
   avatarUrl
   role
   isVerified
-  organizationMemberships(first: 20) {
-    nodes {
-      id
-      isOwner
-      isBillingContact
-      organization {
-        id
-        name
-        slug
-      }
-    }
-  }
 }

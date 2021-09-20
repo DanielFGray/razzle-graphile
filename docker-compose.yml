@@ -1,13 +1,15 @@
-version: "3.8"
+version: '3.8'
 
 services:
   db:
-    env_file: .env
     image: postgres:alpine
-    volumes:
-      # - ./pgscripts:/docker-entrypoint-initdb.d
-      # - ./data:/var/lib/postgresql/data
-      # - /var/run/postgresql:/var/run/postgresql
+    environment:
+      - POSTGRES_USER=${ROOT_DATABASE_USER}
+      - POSTGRES_PASSWORD=${ROOT_DATABASE_PASSWORD}
+    # volumes:
+    #   - ./pgscripts:/docker-entrypoint-initdb.d
+    #   - ./data:/var/lib/postgresql/data
+    #   - /var/run/postgresql:/var/run/postgresql
     networks:
       - appnet
     ports:
@@ -15,4 +17,3 @@ services:
 
 networks:
   appnet:
-

@@ -1,34 +1,29 @@
 import express, { static as staticFiles } from 'express'
-import { ssr } from './render'
+import { SSR } from './render'
 import { errorRequestHandler } from '../handleErrors'
-import { csrf, helmet } from './security'
 import morgan from 'morgan'
-import postgraphile from './postgraphile'
+import { helmet, addOrigin, csrf } from './security'
+import { installPostgraphileMiddleware } from './postgraphile'
 import { installPassport } from './passport'
 import { installSessionMiddleware } from './sessions'
-// import { makeWorkerUtils } from "graphile-worker";
 
 const isDev = process.env.NODE_ENV === 'development'
+const publicDir = process.env.RAZZLE_PUBLIC_DIR
 
 const server = express()
-server.locals = {
-  websocketMiddlewares: [],
-}
-server
-  .disable('x-powered-by')
-  .use(morgan(isDev ? 'dev' : 'combined'))
-  .use(helmet)
-  .use(csrf)
-  .use(staticFiles(process.env.RAZZLE_PUBLIC_DIR))
-  .use(errorRequestHandler)
-installPassport(server)
+server.locals = { websocketMiddlewares: [] }
+server.set('subscriptions', true)
+server.enable('trust proxy')
+server.disable('x-powered-by')
+server.use(morgan(isDev ? 'dev' : 'combined'))
+// server.use(helmet)
+server.use(staticFiles(publicDir))
+server.use(addOrigin)
+server.use(errorRequestHandler)
 installSessionMiddleware(server)
-server.use(postgraphile(server)).get('/*', ssr)
-
-// makeWorkerUtils({ pgPool: getRootPgPool(server) });
-
-console.log('index loaded')
-
-export { render } from './render'
+server.use(csrf)
+installPassport(server)
+installPostgraphileMiddleware(server)
+server.get('/*', SSR)
 
 export default server

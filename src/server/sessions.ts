@@ -15,10 +15,9 @@ const MINUTE = 60 * SECOND
 const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
 
-const { ROOT_URL, SECRET } = process.env
-if (!SECRET) {
-  throw new Error('Server misconfigured')
-}
+const { RAZZLE_ROOT_URL, SECRET } = process.env
+if (! SECRET) throw new Error('missing SECRET envrionment variable')
+
 const MAXIMUM_SESSION_DURATION_IN_MILLISECONDS =
   parseInt(process.env.MAXIMUM_SESSION_DURATION_IN_MILLISECONDS || '', 10) || 3 * DAY
 
@@ -74,7 +73,7 @@ export function installSessionMiddleware(app: Express) {
    * authentication method such as bearer tokens.
    */
   const wrappedSessionMiddleware: RequestHandler = (req, res, next) => {
-    if (!req.headers.origin || req.headers.origin === ROOT_URL) {
+    if (req.isSameOrigin) {
       sessionMiddleware(req, res, next)
     } else {
       next()

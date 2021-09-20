@@ -1,7 +1,7 @@
-schema: ./schema.gql
+schema: ./generated-schema.gql
 documents: ./src/**/*.gql
 generates:
-  codegen.ts:
+  ./src/generated-hooks.ts:
     plugins:
       - add:
           content:
@@ -21,4 +21,4 @@ generates:
       withMutationFn: true
 hooks:
   afterOneFileWrite:
-    - prettier './codegen.ts' --write
+    - prettier './src/generated-hooks.ts' --write

@@ -1,19 +1,21 @@
 import path from 'path'
-import { makePluginHook, postgraphile } from 'postgraphile'
+import { makePluginHook, postgraphile, HttpRequestHandler } from 'postgraphile'
 import PgPubsub from '@graphile/pg-pubsub'
 import PgSimplifyInflectorPlugin from '@graphile-contrib/pg-simplify-inflector'
 import { makePgSmartTagsFromFilePlugin } from 'postgraphile/plugins'
 import { makeAddPgTableOrderByPlugin, orderByAscDesc } from 'graphile-utils'
 import { NodePlugin, Plugin } from 'graphile-build'
-import type { Pool, PoolClient } from 'pg'
+import { Express } from 'express'
 import { PassportLoginPlugin } from './passport'
 import SubscriptionsPlugin from './graphile-subscriptions'
 import { rootPgPool } from './dbPools'
 import { handleErrors } from '../handleErrors'
+import { RemoveForeignKeyFieldsPlugin } from 'postgraphile-remove-foreign-key-fields-plugin'
 
 const isTest = process.env.NODE_ENV === 'test'
 const isDev = process.env.NODE_ENV === 'development'
 
+type postgraphile = ReturnType<typeof postgraphile>
 type PgConstraint = any
 type UUID = string
 
@@ -22,7 +24,7 @@ const PrimaryKeyMutationsOnlyPlugin: Plugin = builder => {
     'build',
     build => {
       build.pgIntrospectionResultsByKind.constraint.forEach((constraint: PgConstraint) => {
-        if (!constraint.tags.omit && constraint.type !== 'p') {
+        if (! constraint.tags.omit && constraint.type !== 'p') {
           constraint.tags.omit = ['update', 'delete']
         }
       })
@@ -35,13 +37,12 @@ const PrimaryKeyMutationsOnlyPlugin: Plugin = builder => {
 }
 
 function uuidOrNull(input: string | number | null | undefined): UUID | null {
-  if (!input) return null
+  if (! input) return null
   const str = String(input)
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str)) {
     return str
-  } else {
-    return null
   }
+  return null
 }
 
 const RemoveQueryQueryPlugin: Plugin = builder => {
@@ -50,9 +51,8 @@ const RemoveQueryQueryPlugin: Plugin = builder => {
       const { query, ...rest } = fields
       /* Drop the `query` field */
       return rest
-    } else {
-      return fields
     }
+    return fields
   })
 }
 
@@ -76,16 +76,25 @@ const OrdersPlugin = makeAddPgTableOrderByPlugin(
 
 // We're using JSONC for VSCode compatibility; also using an explicit file
 /* path keeps the tests happy. */
-const TagsFilePlugin = makePgSmartTagsFromFilePlugin(path.resolve('./postgraphile.tags.jsonc'))
+const TagsFilePlugin = makePgSmartTagsFromFilePlugin(path.resolve('./src/postgraphile.tags.jsonc'))
 
-let middleware
-export default function postgraphileMiddleware(app: Express) {
+let middleware: postgraphile
+export function getPostgraphileMiddleware(): postgraphile {
   if (middleware) return middleware
-  const websocketMiddlewares = app.locals.websocketMiddlewares
-  return (middleware = postgraphile(rootPgPool, 'app_public', {
+  throw new Error('middleware not defined yet!')
+}
+
+export function installPostgraphileMiddleware(server: Express) {
+  server.get('/graphql', (_req, res) => res.redirect('/graphiql'))
+  return createPostgraphileMiddleware(server)
+}
+
+export function createPostgraphileMiddleware(app: Express): postgraphile {
+  if (middleware) return middleware
+  middleware = postgraphile(rootPgPool, 'app_public', {
     /* This is for PostGraphile server plugins: https://www.graphile.org/postgraphile/plugins/ */
     /* Add the pub/sub realtime provider */
-    pluginHook: makePluginHook([PgPubsub]),
+    pluginHook: app.get('subscriptions') ? makePluginHook([PgPubsub]) : undefined,
     /* This is so that PostGraphile installs the watch fixtures, it's also needed to enable live queries */
     ownerConnectionString: process.env.ROOT_DATABASE_URL,
 
@@ -93,11 +102,11 @@ export default function postgraphileMiddleware(app: Express) {
      * On development, we want to deal nicely with issues in the database.
      * For these reasons, we're going to keep retryOnInitFail enabled for both environments.
      */
-    retryOnInitFail: !isTest,
+    retryOnInitFail: ! isTest,
 
     /* Add websocket support to the PostGraphile server; you still need to use a subscriptions plugin such as @graphile/pg-pubsub */
-    // subscriptions: true,
-    // websocketMiddlewares,
+    subscriptions: app.get('subscriptions'),
+    websocketMiddlewares: app.get('subscriptions') && app.locals.websocketMiddlewares,
     /* enableQueryBatching: On the client side, use something like apollo-link-batch-http to make use of this */
     enableQueryBatching: true,
 
@@ -114,7 +123,7 @@ export default function postgraphileMiddleware(app: Express) {
     setofFunctionsContainNulls: false,
 
     /* Enable GraphiQL in development */
-    graphiql: isDev || !!process.env.ENABLE_GRAPHIQL,
+    graphiql: isDev || !! process.env.ENABLE_GRAPHIQL,
     /* Use a fancier GraphiQL with `prettier` for formatting, and header editing. */
     enhanceGraphiql: true,
     /* Allow EXPLAIN in development (you can replace this with a callback function
@@ -126,7 +135,7 @@ export default function postgraphileMiddleware(app: Express) {
     disableQueryLog: true,
 
     /* Custom error handling */
-    extendedErrors: handleErrors,
+    handleErrors,
     /*
      * To use the built in PostGraphile error handling, you can use the
      * following code instead of `handleErrors` above. Using `handleErrors`
@@ -153,14 +162,14 @@ export default function postgraphileMiddleware(app: Express) {
         ]
         : ['errcode'],
      */
-    showErrorStack: isDev || isTest,
+    // showErrorStack: isDev || isTest,
 
     /* Automatically update GraphQL schema when database changes */
     watchPg: isDev,
 
     /* Keep data/schema.graphql up to date */
     sortExport: true,
-    exportGqlSchemaPath: isDev ? `./schema.gql` : undefined,
+    exportGqlSchemaPath: isDev ? './generated-schema.gql' : undefined,
 
     /*
      * Plugins to enhance the GraphQL schema, see:
@@ -171,19 +180,20 @@ export default function postgraphileMiddleware(app: Express) {
        * compatibility. We don't need that.
        */
       RemoveQueryQueryPlugin,
+      /* Omits non-primary-key constraint mutations */
+      PrimaryKeyMutationsOnlyPlugin,
+      /* Omits foreign key ids */
+      RemoveForeignKeyFieldsPlugin,
 
       /* Adds support for our `postgraphile.tags.json5` file */
       TagsFilePlugin,
       /* Simplifies the field names generated by PostGraphile. */
       PgSimplifyInflectorPlugin,
 
-      /* Omits by default non-primary-key constraint mutations */
-      PrimaryKeyMutationsOnlyPlugin,
-
       /* Adds the `login` mutation to enable users to log in */
       PassportLoginPlugin,
       /* Adds realtime features to our GraphQL schema */
-      // SubscriptionsPlugin,
+      SubscriptionsPlugin,
       /* Adds custom orders to our GraphQL schema */
       OrdersPlugin,
     ],
@@ -264,5 +274,6 @@ export default function postgraphileMiddleware(app: Express) {
         },
       }
     },
-  }))
+  })
+  return middleware
 }

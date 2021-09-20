@@ -1,8 +1,9 @@
 import { gql, makeExtendSchemaPlugin } from 'graphile-utils'
 import type { Express, Request, RequestHandler } from 'express'
-import type { PoolClient } from 'pg'
 import passport from 'passport'
 import { Strategy as GitHubStrategy } from 'passport-github2'
+// import { Strategy as TwitterStrategy } from 'passport-twitter'
+// import { Strategy as RedditStrategy } from 'passport-reddit'
 import { ERROR_MESSAGE_OVERRIDES } from '../handleErrors'
 
 import { rootPgPool } from './dbPools'
@@ -24,23 +25,17 @@ export interface UserSpec {
   auth?: any
 }
 
-export type GetUserInformationFunction = (
-  profile: any,
-  accessToken: string,
-  refreshToken: string,
-  extra: any,
-  req: Request,
-) => UserSpec | Promise<UserSpec>
+export type GetUserInformationFunction = (info: {
+  profile: any
+  accessToken: string
+  refreshToken: string
+  extra: any
+  req: Request
+}) => UserSpec
 
 /*
  * Add returnTo property using [declaration merging](https://www.typescriptlang.org/docs/handbook/declaration-merging.html).
  */
-
-declare module 'express-session' {
-  interface SessionData {
-    returnTo?: string
-  }
-}
 
 /*
  * Stores where to redirect the user to on authentication success.
@@ -48,12 +43,12 @@ declare module 'express-session' {
  */
 const setReturnTo: RequestHandler = (req, _res, next) => {
   const BLOCKED_REDIRECT_PATHS = /^\/+(|auth.*|logout)(\?.*)?$/
-  if (!req.session) {
+  if (! req.session) {
     next()
     return
   }
-  const returnTo = (req.query && req.query.next && String(req.query.next)) || req.session.returnTo
-  if (returnTo && returnTo[0] === '/' && !BLOCKED_REDIRECT_PATHS.exec(returnTo)) {
+  const returnTo = (req.query?.next && String(req.query.next)) || req.session.returnTo
+  if (returnTo && returnTo[0] === '/' && ! BLOCKED_REDIRECT_PATHS.exec(returnTo)) {
     req.session.returnTo = returnTo
   } else {
     delete req.session.returnTo
@@ -61,16 +56,36 @@ const setReturnTo: RequestHandler = (req, _res, next) => {
   next()
 }
 
-export function installPassportStrategy(
-  app: Express,
-  service: string,
-  Strategy: new (...args: any) => passport.Strategy,
-  strategyConfig: any,
-  authenticateConfig: any,
-  getUserInformation: GetUserInformationFunction,
+const noop = (_: any): void => {}
+
+export function installPassportStrategy({
+  app,
+  service,
+  strategy: Strategy,
+  strategyConfig,
+  authenticateConfig = {},
+  getUserInformation,
   tokenNames = ['accessToken', 'refreshToken'],
-  { preRequest = (_req: Request) => {}, postRequest = (_req: Request) => {} } = {},
-): void {
+  hooks: { preRequest, postRequest } = { preRequest: noop, postRequest: noop },
+}: {
+  app: Express
+  service: string
+  strategy: new (...args: any) => passport.Strategy
+  strategyConfig: any
+  authenticateConfig?: any
+  getUserInformation: (info: {
+    profile: any
+    accessToken: string
+    refreshToken: string
+    extra: any
+    req: Request
+  }) => UserSpec
+  tokenNames: string[]
+  hooks?: {
+    preRequest?: undefined | ((req: Express.Request) => void)
+    postRequest?: undefined | ((req: Express.Request) => void)
+  }
+}): void {
   passport.use(
     new Strategy(
       {
@@ -87,19 +102,19 @@ export function installPassportStrategy(
         done: (error: any, user?: any) => void,
       ) => {
         try {
-          const userInformation = await getUserInformation(
+          const userInformation = getUserInformation({
             profile,
             accessToken,
             refreshToken,
             extra,
             req,
-          )
-          if (!userInformation.id) {
+          })
+          if (! userInformation?.id) {
             throw new Error(`getUserInformation must return a unique id for each user`)
           }
           let session: DbSession | null = null
-          if (req.user?.user.session_id) {
-            ;({
+          if (req?.user?.session_id) {
+            ({
               rows: [session],
             } = await rootPgPool.query<DbSession>(
               'select * from app_private.sessions where uuid = $1',
@@ -128,20 +143,20 @@ export function installPassportStrategy(
               }),
             ],
           )
-          if (!user || !user.id) {
+          if (! user?.id) {
             const e = new Error('Registration failed')
             e['code'] = 'FFFFF'
             throw e
           }
-          if (!session) {
-            ;({
+          if (! session) {
+            ({
               rows: [session],
             } = await rootPgPool.query<DbSession>(
               `insert into app_private.sessions (user_id) values ($1) returning *`,
               [user.id],
             ))
           }
-          if (!session) {
+          if (! session) {
             const e = new Error('Failed to create session')
             e['code'] = 'FFFFF'
             throw e
@@ -161,10 +176,10 @@ export function installPassportStrategy(
       next(e)
       return
     }
-    const realAuthDetails =
-      typeof authenticateConfig === 'function' ? authenticateConfig(req) : authenticateConfig
-    const step1Middleware = passport.authenticate(service, realAuthDetails)
-    step1Middleware(req, res, next)
+    passport.authenticate(
+      service,
+      typeof authenticateConfig === 'function' ? authenticateConfig(req) : authenticateConfig,
+    )(req, res, next)
   })
 
   const step2Middleware = passport.authenticate(service, {
@@ -199,45 +214,86 @@ export function installPassport(app: Express): void {
   passport.serializeUser((sessionObject: DbSession, done) => {
     done(null, sessionObject.session_id)
   })
-
   passport.deserializeUser((session_id: string, done) => {
     done(null, { session_id })
   })
-
-  const passportInitializeMiddleware = passport.initialize()
-  app.use(passportInitializeMiddleware)
-  // app.locals.websocketMiddlewares.push(passportInitializeMiddleware);
-
-  const passportSessionMiddleware = passport.session()
-  app.use(passportSessionMiddleware)
-  // app.locals.websocketMiddlewares.push(passportSessionMiddleware);
+  ;[passport.initialize(), passport.session()].forEach(m => {
+    app.use(m)
+    app.locals.websocketMiddlewares.push(m)
+  })
 
   app.get('/logout', (req, res) => {
     req.logout()
     res.redirect('/')
   })
 
-  if (process.env.GITHUB_KEY) {
-    installPassportStrategy(
+  if (process.env.GITHUB_KEY && process.env.GITHUB_SECRET) {
+    installPassportStrategy({
       app,
-      'github',
-      GitHubStrategy,
-      {
+      service: 'github',
+      strategy: GitHubStrategy,
+      strategyConfig: {
         clientID: process.env.GITHUB_KEY,
         clientSecret: process.env.GITHUB_SECRET,
         scope: ['user:email'],
       },
-      {},
-      (profile, _accessToken, _refreshToken, _extra, _req) => ({
-        id: profile.id,
-        displayName: profile?.displayName ?? profile.username,
-        username: profile.username,
-        avatarUrl: profile?.photos?.[0]?.value,
-        email: profile.email || profile?.emails?.[0]?.value,
-      }),
-      ['token', 'tokenSecret'],
-    )
+      authenticateConfig: {},
+      getUserInformation({ profile }) {
+        return {
+          id: profile.id,
+          displayName: profile?.displayName ?? profile.username,
+          username: profile.username,
+          avatarUrl: profile?.photos?.[0]?.value,
+          email: profile.email || profile?.emails?.[0]?.value,
+        }
+      },
+      tokenNames: ['token', 'tokenSecret'],
+    })
   }
+
+  // if (process.env.TWITTER_KEY && process.env.TWITTER_SECRET) {
+  //   installPassportStrategy({
+  //     app,
+  //     service: 'twitter',
+  //     strategy: TwitterStrategy,
+  //     strategyConfig: {
+  //       clientID: process.env.TWITTER_KEY,
+  //       clientSecret: process.env.TWITTER_SECRET,
+  //       scope: ['user:email'],
+  //     },
+  //     authenticateConfig: {},
+  //     getUserInformation: ({ profile }) => ({
+  //       id: profile.id,
+  //       displayName: profile?.displayName ?? profile.username,
+  //       username: profile.username,
+  //       avatarUrl: profile?.photos?.[0]?.value,
+  //       email: profile.email || profile?.emails?.[0]?.value,
+  //     }),
+  //     tokenNames: ['token', 'tokenSecret'],
+  //   })
+  // }
+
+  // if (process.env.REDDIT_KEY && process.env.REDDIT_SECRET) {
+  //   installPassportStrategy({
+  //     app,
+  //     service: 'reddit',
+  //     strategy: RedditStrategy,
+  //     strategyConfig: {
+  //       clientID: process.env.REDDIT_KEY,
+  //       clientSecret: process.env.REDDIT_SECRET,
+  //       scope: ['user:email'],
+  //     },
+  //     authenticateConfig: {},
+  //     getUserInformation: ({ profile }) => ({
+  //       id: profile.id,
+  //       displayName: profile?.displayName ?? profile.username,
+  //       username: profile.username,
+  //       avatarUrl: profile?.photos?.[0]?.value,
+  //       email: profile.email || profile?.emails?.[0]?.value,
+  //     }),
+  //     tokenNames: ['token', 'tokenSecret'],
+  //   })
+  // }
 }
 
 export const PassportLoginPlugin = makeExtendSchemaPlugin(build => ({
@@ -330,7 +386,9 @@ export const PassportLoginPlugin = makeExtendSchemaPlugin(build => ({
         const { login, pgClient } = context
         try {
           // Call our login function to find out if the username/password combination exists
-          const { rows: [details] } = await rootPgPool.query(
+          const {
+            rows: [details],
+          } = await rootPgPool.query(
             `with new_user as (
               select users.* from app_private.really_create_user(
                 username => $1,
@@ -350,7 +408,7 @@ export const PassportLoginPlugin = makeExtendSchemaPlugin(build => ({
             [username, email, name, avatarUrl, password],
           )
 
-          if (!details || !details.user_id) {
+          if (! details || ! details.user_id) {
             const e = new Error('Registration failed')
             e['code'] = 'FFFFF'
             throw e
@@ -411,7 +469,7 @@ export const PassportLoginPlugin = makeExtendSchemaPlugin(build => ({
             [username, password],
           )
 
-          if (!session) {
+          if (! session) {
             const error = new Error('Incorrect username/password')
             error['code'] = 'CREDS'
             throw error

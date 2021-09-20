@@ -1,10 +1,10 @@
-import type { PoolClient } from 'pg-sql2'
+import type { PoolClient } from 'pg'
 
 export type Maybe<T> = null | T
 
 declare module '*.svg' {
-  const src: string;
-  export default src;
+  const src: string
+  export default src
 }
 
 export interface OurGraphQLContext {
@@ -14,3 +14,8 @@ export interface OurGraphQLContext {
   logout(): Promise<void>
 }
 
+declare module 'express-session' {
+  interface SessionData {
+    returnTo?: string
+  }
+}

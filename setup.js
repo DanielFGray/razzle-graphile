@@ -21,11 +21,31 @@ const pgPool = new pg.Pool({
   connectionString: ROOT_DATABASE_URL,
 })
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
 async function main() {
+  let attempts = 0
+  while (true) {
+    try {
+      await pgPool.query('select true as "Connection test"')
+      break
+    } catch (e) {
+      if (e.code === "28P01") throw e
+      attempts++
+      if (attempts <= 30) {
+        console.log(`Database is not ready yet (attempt ${attempts}): ${e.message}`)
+      } else {
+        console.log(`Database never came up, aborting :(`)
+        process.exit(1)
+      }
+      await sleep(1000)
+    }
+  }
+
   const client = await pgPool.connect()
   try {
     await client.query(`drop database if exists ${DATABASE_NAME }`)
-    await client.query(`drop database if exists ${DATABASE_NAME}_shadow;`)
+    await client.query(`drop database if exists ${DATABASE_NAME}_shadow`)
     await client.query(`drop database if exists ${DATABASE_NAME}_test`)
     await client.query(`drop role if exists ${DATABASE_VISITOR}`)
     await client.query(`drop role if exists ${DATABASE_AUTHENTICATOR}`)

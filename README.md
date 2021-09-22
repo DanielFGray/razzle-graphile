@@ -11,6 +11,7 @@ a [currently work-in-progress] boilerplate that uses
 * [**express**](https://expressjs.com)
 * [**express-session**](https://github.com/expressjs/session)
 * [**passport**](http://www.passportjs.org/)
+* [**graphql-codegen**](https://github.com/dotansimha/graphql-code-generator)
 * [**apollo-client**](https://www.apollographql.com/docs/react/)
 
 ## getting started

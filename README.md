@@ -11,6 +11,7 @@ a [currently work-in-progress] boilerplate that uses
 * [**express**](https://expressjs.com)
 * [**express-session**](https://github.com/expressjs/session)
 * [**passport**](http://www.passportjs.org/)
+* [**apollo-client**](https://www.apollographql.com/docs/react/)
 
 ## getting started
 
@@ -20,4 +21,8 @@ yarn setup
 yarn start
 ```
 
-the setup script will generate an `.env` file, launch a postgres container via `docker-compose` and run
+the setup script will generate an `.env` file, launch a postgres container via `docker-compose` and run migrations
+
+## credits
+
+a good chunk of this is ~~stolen~~ borrowed from [graphile/starter](https://github.com/graphile/starter), ive just tried to make it work with razzle and apollo v3

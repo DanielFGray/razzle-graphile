@@ -90,7 +90,7 @@ export function installPassportStrategy({
     new Strategy(
       {
         ...strategyConfig,
-        callbackURL: `${process.env.ROOT_URL}/auth/${service}/callback`,
+        callbackURL: `${process.env.RAZZLE_ROOT_URL}/auth/${service}/callback`,
         passReqToCallback: true,
       },
       async (
@@ -203,6 +203,7 @@ interface DbSession {
 }
 
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface User {
       session_id: string
@@ -238,15 +239,13 @@ export function installPassport(app: Express): void {
         scope: ['user:email'],
       },
       authenticateConfig: {},
-      getUserInformation({ profile }) {
-        return {
-          id: profile.id,
-          displayName: profile?.displayName ?? profile.username,
-          username: profile.username,
-          avatarUrl: profile?.photos?.[0]?.value,
-          email: profile.email || profile?.emails?.[0]?.value,
-        }
-      },
+      getUserInformation: ({ profile }) => ({
+        id: profile.id,
+        displayName: profile?.displayName ?? profile.username,
+        username: profile.username,
+        avatarUrl: profile?.photos?.[0]?.value,
+        email: profile.email || profile?.emails?.[0]?.value,
+      }),
       tokenNames: ['token', 'tokenSecret'],
     })
   }

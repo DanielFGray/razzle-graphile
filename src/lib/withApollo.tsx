@@ -62,12 +62,12 @@ export function createApolloClient(): ApolloClient<unknown> {
   if (! _rootURL) throw new Error('ROOT_URL envvar is not set')
   if (apolloClient) return apolloClient
   const initialState = window.__INIT_DATA__
-  // const CSRF_TOKEN = initialState.CSRF_TOKEN
+  const CSRF_TOKEN = initialState?.CSRF_TOKEN
   const httpLink = new HttpLink({
     uri: '/graphql',
     credentials: 'include',
     headers: {
-      // 'CSRF-Token': CSRF_TOKEN,
+      'CSRF-Token': CSRF_TOKEN,
     },
   })
   wsClient = createWsClient()
@@ -99,11 +99,11 @@ export function createApolloClient(): ApolloClient<unknown> {
 
   apolloClient = new ApolloClient({
     link: ApolloLink.from([onErrorLink, httpLink]),
-    cache: new InMemoryCache().restore(initialState || {}),
-    // cache: new InMemoryCache({
-    //   dataIdFromObject: o =>
-    //     o.__typename === 'Query' ? 'ROOT_QUERY' : o.id ? `${o.__typename}:${o.id}` : null,
-    // }).restore(initialState || {}),
+    // cache: new InMemoryCache().restore(initialState || {}),
+    cache: new InMemoryCache({
+      dataIdFromObject: o =>
+        o.__typename === 'Query' ? 'ROOT_QUERY' : o.id ? `${o.__typename}:${o.id}` : null,
+    }).restore(initialState || {}),
   })
 
   return apolloClient

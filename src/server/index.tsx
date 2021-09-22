@@ -1,29 +1,29 @@
 import express, { static as staticFiles } from 'express'
-import { SSR } from './render'
-import { errorRequestHandler } from '../handleErrors'
 import morgan from 'morgan'
 import { helmet, addOrigin, csrf } from './security'
-import { installPostgraphileMiddleware } from './postgraphile'
-import { installPassport } from './passport'
+import { errorRequestHandler } from '../handleErrors'
 import { installSessionMiddleware } from './sessions'
+import { installPassport } from './passport'
+import { createPostgraphileMiddleware } from './postgraphile'
+import { SSR } from './render'
 
 const isDev = process.env.NODE_ENV === 'development'
 const publicDir = process.env.RAZZLE_PUBLIC_DIR
 
-const server = express()
-server.locals = { websocketMiddlewares: [] }
-server.set('subscriptions', true)
-server.enable('trust proxy')
-server.disable('x-powered-by')
-server.use(morgan(isDev ? 'dev' : 'combined'))
-// server.use(helmet)
-server.use(staticFiles(publicDir))
-server.use(addOrigin)
-server.use(errorRequestHandler)
-installSessionMiddleware(server)
-server.use(csrf)
-installPassport(server)
-installPostgraphileMiddleware(server)
-server.get('/*', SSR)
+const app = express()
+app.locals = { websocketMiddlewares: [] }
+app.set('subscriptions', true)
+app.set('trust proxy', 1)
+app.disable('x-powered-by')
+app.use(morgan(isDev ? 'dev' : 'combined'))
+// app.use(helmet) // FIXME disabled because CSP issues
+app.use(staticFiles(publicDir))
+app.use(addOrigin)
+app.use(errorRequestHandler)
+installSessionMiddleware(app)
+// app.use(csrf)
+installPassport(app)
+createPostgraphileMiddleware(app)
+app.get('/*', SSR)
 
-export default server
+export default app

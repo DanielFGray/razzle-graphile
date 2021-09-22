@@ -47,7 +47,6 @@ export async function render(
     }
 > {
   let status = 200
-  const postgraphileMiddleware = getPostgraphileMiddleware()
   const apolloClient = new ApolloClient({
     ssrMode: true,
     cache: new InMemoryCache(),
@@ -56,7 +55,11 @@ export async function render(
         if (graphQLErrors) console.error(...graphQLErrors)
         if (networkError) console.error(networkError)
       }),
-      new GraphileApolloLink({ req, res, postgraphileMiddleware }),
+      new GraphileApolloLink({
+        req,
+        res,
+        postgraphileMiddleware: getPostgraphileMiddleware(),
+      }),
     ]),
   })
   const routerCtx: StaticRouterContext = {}
@@ -84,7 +87,9 @@ export async function render(
   const markup = await renderToStringWithData(App)
   const { helmet } = helmetCtx as FilledContext
   const data = apolloClient.extract()
+  Object.assign(data, { CSRF_TOKEN: req.csrfToken() })
 
+  // prettier-ignore
   const html = `<!doctype html>
 <html ${helmet.htmlAttributes.toString()}>
   <head>
@@ -97,11 +102,13 @@ export async function render(
   <body${helmet.bodyAttributes.toString()}>
     ${helmet.noscript.toString()}
     <div id="root">${markup}</div>
-    <script type="text/javascript">window.__INIT_DATA__ = ${JSON.stringify(
-    Object.assign({}, data, { CSRF_TOKEN: req.csrfToken() }),
-    null,
-    process.env.NODE_ENV === 'development' ? 2 : undefined,
-  ).replace(/</g, '\\u003c')}</script>
+    <script type="text/javascript">
+      window.__INIT_DATA__ = ${JSON.stringify(
+        data,
+        null,
+        process.env.NODE_ENV === 'development' ? 2 : undefined,
+      ).replace(/</g, '\\u003c')}
+    </script>
     ${jsScriptTagsFromAssets('client', ' defer crossorigin')}
   </body>
 </html>`

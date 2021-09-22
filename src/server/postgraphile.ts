@@ -8,9 +8,10 @@ import { NodePlugin, Plugin } from 'graphile-build'
 import { Express } from 'express'
 import { PassportLoginPlugin } from './passport'
 import SubscriptionsPlugin from './graphile-subscriptions'
-import { rootPgPool } from './dbPools'
+import { rootPgPool, authPgPool } from './dbPools'
 import { handleErrors } from '../handleErrors'
 import { RemoveForeignKeyFieldsPlugin } from 'postgraphile-remove-foreign-key-fields-plugin'
+import { makeWorkerUtils } from "graphile-worker"
 
 const isTest = process.env.NODE_ENV === 'test'
 const isDev = process.env.NODE_ENV === 'development'
@@ -84,14 +85,9 @@ export function getPostgraphileMiddleware(): postgraphile {
   throw new Error('middleware not defined yet!')
 }
 
-export function installPostgraphileMiddleware(server: Express) {
-  server.get('/graphql', (_req, res) => res.redirect('/graphiql'))
-  return createPostgraphileMiddleware(server)
-}
-
 export function createPostgraphileMiddleware(app: Express): postgraphile {
   if (middleware) return middleware
-  middleware = postgraphile(rootPgPool, 'app_public', {
+  middleware = postgraphile(authPgPool, 'app_public', {
     /* This is for PostGraphile server plugins: https://www.graphile.org/postgraphile/plugins/ */
     /* Add the pub/sub realtime provider */
     pluginHook: app.get('subscriptions') ? makePluginHook([PgPubsub]) : undefined,
@@ -275,5 +271,6 @@ export function createPostgraphileMiddleware(app: Express): postgraphile {
       }
     },
   })
-  return middleware
+  app.use(middleware)
+  makeWorkerUtils({ pgPool: rootPgPool })
 }

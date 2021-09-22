@@ -1,36 +1,36 @@
-import { Task } from "graphile-worker";
+import { Task } from 'graphile-worker'
 
-import { SendEmailPayload } from "./send_email";
+import { SendEmailPayload } from './send_email'
 
 interface UserSendAccountDeletionEmailPayload {
   /**
    * email address
    */
-  email: string;
+  email: string
 
   /**
    * secret token
    */
-  token: string;
+  token: string
 }
 
 const task: Task = async (inPayload, { addJob }) => {
-  const payload: UserSendAccountDeletionEmailPayload = inPayload as any;
-  const { email, token } = payload;
+  const payload: UserSendAccountDeletionEmailPayload = inPayload as any
+  const { email, token } = payload
   const sendEmailPayload: SendEmailPayload = {
     options: {
       to: email,
-      subject: "Confirmation required: really delete account?",
+      subject: 'Confirmation required: really delete account?',
     },
-    template: "delete_account.mjml",
+    template: 'delete_account.mjml',
     variables: {
       token,
-      deleteAccountLink: `${
-        process.env.ROOT_URL
-      }/settings/delete?token=${encodeURIComponent(token)}`,
+      deleteAccountLink: `${process.env.ROOT_URL}/settings/delete?token=${encodeURIComponent(
+        token,
+      )}`,
     },
-  };
-  await addJob("send_email", sendEmailPayload);
-};
+  }
+  await addJob('send_email', sendEmailPayload)
+}
 
-module.exports = task;
+module.exports = task

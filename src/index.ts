@@ -1,4 +1,4 @@
-import express from 'express'
+import http from 'http'
 
 let app = require('./server').default
 
@@ -16,8 +16,7 @@ if (module.hot) {
 
 const port = process.env.PORT ? Number(process.env.PORT) : 3000
 
-export default express()
-  .use((req, res) => app.handle(req, res))
+export default http.createServer(app.handle.bind(app))
   .listen(port, () => {
     console.log(`> App started http://localhost:${port}`)
   })

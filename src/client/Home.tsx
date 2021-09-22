@@ -1,5 +1,5 @@
 import React from 'react'
-import { useSharedQuery } from '../generated-hooks'
+import { useSharedQuery } from '../codegen'
 
 export default function Home() {
   const query = useSharedQuery()

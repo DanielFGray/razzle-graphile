@@ -1,6 +1,5 @@
-const fs = require('fs')
-const runAll = require("npm-run-all")
 const pg = require('pg')
+const inquirer = require('inquirer')
 
 const {
   DATABASE_OWNER,
@@ -12,16 +11,12 @@ const {
   ROOT_DATABASE_URL,
 } = process.env
 
-if (! fs.existsSync('.env')) {
-  console.error('no .env file and generator not implemented')
-  process.exit(1)
-}
-
-const pgPool = new pg.Pool({
-  connectionString: ROOT_DATABASE_URL,
-})
+const RECONNECT_BASE_DELAY = 100
+const RECONNECT_MAX_DELAY = 30000
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const pgPool = new pg.Pool({ connectionString: ROOT_DATABASE_URL })
 
 async function main() {
   let attempts = 0
@@ -32,26 +27,33 @@ async function main() {
     } catch (e) {
       if (e.code === "28P01") throw e
       attempts++
-      if (attempts <= 30) {
-        console.log(`Database is not ready yet (attempt ${attempts}): ${e.message}`)
-      } else {
+      if (attempts >= 30) {
         console.log(`Database never came up, aborting :(`)
         process.exit(1)
       }
-      await sleep(1000)
+      const delay = Math.floor(Math.min(
+        RECONNECT_MAX_DELAY,
+        RECONNECT_BASE_DELAY * Math.random() * 2 ** attempts
+      ))
+      await sleep(delay)
     }
   }
 
   const client = await pgPool.connect()
   try {
-    await client.query(`drop database if exists ${DATABASE_NAME }`)
+    await client.query(`drop database if exists ${DATABASE_NAME}`)
+    console.log(`DROP DATABASE ${DATABASE_NAME}`)
     await client.query(`drop database if exists ${DATABASE_NAME}_shadow`)
     await client.query(`drop database if exists ${DATABASE_NAME}_test`)
     await client.query(`drop role if exists ${DATABASE_VISITOR}`)
+    console.log(`DROP ROLE ${DATABASE_VISITOR}`)
     await client.query(`drop role if exists ${DATABASE_AUTHENTICATOR}`)
+    console.log(`DROP ROLE ${DATABASE_AUTHENTICATOR}`)
     await client.query(`drop role if exists ${DATABASE_OWNER}`)
+    console.log(`DROP ROLE ${DATABASE_OWNER}`)
 
     await client.query(`create database ${DATABASE_NAME}`)
+    console.log(`CREATE DATABASE ${DATABASE_NAME}`)
     await client.query(`create database ${DATABASE_NAME}_shadow`)
     await client.query(`create database ${DATABASE_NAME}_test`)
 
@@ -63,16 +65,20 @@ async function main() {
      */
     // create role ${DATABASE_OWNER} with login password '${DATABASE_OWNER_PASSWORD}' superuser
     await client.query(`create role ${DATABASE_OWNER} with login password '${DATABASE_OWNER_PASSWORD}' noinherit`)
+    console.log(`CREATE ROLE ${DATABASE_OWNER}`)
     await client.query(`grant all privileges on database ${DATABASE_NAME} to ${DATABASE_OWNER}`)
-
+    console.log(`GRANT ${DATABASE_OWNER}`)
     // This is the no-access role that PostGraphile will run as by default
     await client.query(`create role ${DATABASE_AUTHENTICATOR} with login password '${DATABASE_AUTHENTICATOR_PASSWORD}' noinherit`)
+    console.log(`CREATE ROLE ${DATABASE_AUTHENTICATOR}`)
 
     // This is the role that PostGraphile will switch to (from DATABASE_AUTHENTICATOR) during a GraphQL request
     await client.query(`create role ${DATABASE_VISITOR}`)
+    console.log(`CREATE ROLE ${DATABASE_VISITOR}`)
 
     // This enables PostGraphile to switch from DATABASE_AUTHENTICATOR to DATABASE_VISITOR
     await client.query(`grant ${DATABASE_VISITOR} to ${DATABASE_AUTHENTICATOR}`)
+    console.log(`GRANT ${DATABASE_VISITOR} TO ${DATABASE_AUTHENTICATOR}`)
   } catch (e) {
     console.error(e)
   } finally {

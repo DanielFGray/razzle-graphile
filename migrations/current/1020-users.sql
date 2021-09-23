@@ -9,14 +9,16 @@
  * `user_secrets`.
  */
 
-create type user_role as enum('admin', 'user');
+create type app_public.user_role as enum('admin', 'user');
+create domain app_public.username as citext check(length(value) >= 2 and length(value) <= 24 and value ~ '^[a-zA-Z]([_]?[a-zA-Z0-9])+$');
+create domain app_public.url as text check(value ~ '^https?://\S+');
 
 create table app_public.users (
   id uuid primary key default gen_random_uuid(),
-  username citext not null unique check(length(username) >= 2 and length(username) <= 24 and username ~ '^[a-zA-Z]([_]?[a-zA-Z0-9])+$'),
+  username app_public.username not null unique,
   name text,
-  avatar_url text check(avatar_url ~ '^https?://[^/]+'),
-  role user_role not null default 'user',
+  avatar_url app_public.url,
+  role app_public.user_role not null default 'user',
   is_verified boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

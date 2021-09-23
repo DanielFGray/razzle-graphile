@@ -34,6 +34,7 @@ module.exports = {
   parserOptions: {
     project: 'tsconfig.json',
   },
+  ignorePatterns: ['src/generated/*'],
   rules: {
     semi: ['error', 'never'],
     indent: ['error', 2, { flatTernaryExpressions: true }],

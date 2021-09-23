@@ -1,6 +1,5 @@
 fragment SharedLayout_Query on Query {
   currentUser {
-    id
     ...SharedLayout_User
   }
 }
@@ -12,4 +11,5 @@ fragment SharedLayout_User on User {
   avatarUrl
   role
   isVerified
+  hasPassword
 }

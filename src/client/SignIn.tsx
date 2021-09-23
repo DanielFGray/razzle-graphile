@@ -1,20 +1,29 @@
 import React, { useState } from 'react'
 import { Layout, Form } from 'components'
-import { getCodeFromError } from 'lib'
+import { extractError, getCodeFromError, resetWebsocketConnection, useSearchParams } from 'lib'
 import { useLoginMutation } from 'generated'
+import { useHistory } from 'react-router-dom'
+import { useApolloClient } from '@apollo/client'
 
 export default function SignIn(): JSX.Element {
   const [error, _setError] = useState<null | string[]>(null)
-  const setError = (str: string) => _setError((s: null | string[]) => s)
+  const setError = (str: string | null) =>
+    _setError((s: null | string[]) => {
+      if (str == null) _setError(null)
+      return (s || []).concat(str)
+    })
   const [login] = useLoginMutation()
+  const client = useApolloClient()
+  const history = useHistory()
+  const { next = '/' } = useSearchParams()
   return (
-    <Layout>
+    <Layout forbidWhen={auth => auth.LOGGED_IN}>
       {({ data }) => (
         <Form
           action="/graphql"
           method="post"
           onSubmit={async values => {
-            console.log(values)
+            setError(null)
             try {
               await login({
                 variables: {
@@ -22,11 +31,19 @@ export default function SignIn(): JSX.Element {
                   password: values.password,
                 },
               })
-              setError(null)
+              resetWebsocketConnection()
+              void client.resetStore()
+              history.push(next)
             } catch (e) {
               const errcode = getCodeFromError(e)
-              console.log(errcode, e.message)
-              setError(e.message || e)
+              console.log({ errcode, e })
+              switch (errcode) {
+              case 'CREDS':
+                setError('Incorrect username or password')
+                break
+              default:
+                setError(e instanceof Error ? extractError(e).message : e)
+              }
             }
           }}
         >
@@ -34,7 +51,7 @@ export default function SignIn(): JSX.Element {
             <legend>sign in</legend>
             <div>
               <label>
-                {'username: '}
+                {'username or email: '}
                 <input
                   type="text"
                   name="username"
@@ -47,12 +64,7 @@ export default function SignIn(): JSX.Element {
             <div>
               <label>
                 {'password: '}
-                <input
-                  type="text"
-                  name="password"
-                  placeholder="password [required]"
-                  required
-                />
+                <input type="password" name="password" placeholder="password [required]" required />
               </label>
             </div>
             {error && <div>{error}</div>}

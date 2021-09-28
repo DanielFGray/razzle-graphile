@@ -33,7 +33,7 @@ export function Layout<T extends Apollo.QueryResult<SharedLayout_QueryFragment>>
   if (
     query.data &&
     query.data.currentUser &&
-    (forbidsLoggedIn || (forbidsNotAdmin && data.currentUser.role === 'ADMIN'))
+    (forbidsLoggedIn || (forbidsNotAdmin && query.data.currentUser.role !== 'ADMIN'))
   ) {
     return <Redirect to="/" />
   } else if (

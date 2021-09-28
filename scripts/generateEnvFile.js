@@ -2,6 +2,8 @@ const fs = require('fs/promises')
 const crypto = require('crypto')
 const inquirer = require('inquirer')
 
+const packageName = require('../package.json').name.replace(/\W/g, '_').replace(/__+/g, '')
+
 const validName = str => {
   if (str.length < 4) return 'must be at least 4 characters'
   if (str !== str.toLowerCase()) return 'must be lowercase'
@@ -18,7 +20,7 @@ async function main() {
 
   const { ROOT_DATABASE_USER } = await inquirer.prompt([{ name: 'ROOT_DATABASE_USER', message: 'superuser database username:', default: 'postgres', prefix: '' }])
   const { DATABASE_HOST } = await inquirer.prompt([{ name: 'DATABASE_HOST', message: 'database host:', default: 'localhost:5432', prefix: '' }])
-  const { DATABASE_NAME } = await inquirer.prompt([{ name: 'DATABASE_NAME', message: 'database name:', validate: validName, prefix: '' }])
+  const { DATABASE_NAME } = await inquirer.prompt([{ name: 'DATABASE_NAME', message: 'database name:', default: packageName, validate: validName, prefix: '' }])
   const { DATABASE_OWNER } = await inquirer.prompt([{ name: 'DATABASE_OWNER', message: 'database username:', default: DATABASE_NAME, prefix: '' }])
   const { DATABASE_AUTHENTICATOR } = await inquirer.prompt([{ name: 'DATABASE_AUTHENTICATOR', message: 'authenticator role name:', default: 'authenticator', prefix: '' }])
   const { DATABASE_VISITOR } = await inquirer.prompt([{ name: 'DATABASE_VISITOR', message: 'visitor role name:', default: 'visitor', prefix: '' }])

@@ -76,42 +76,42 @@ const task: Task = async (rawPayload, { addJob, withPgClient, job }) => {
   let subject: string
   let actionDescription: string
   switch (payload.type) {
-    case 'added_email': {
-      subject = `You added an email to your account`
-      actionDescription = `You added the email '${payload.extra2}' to your account.`
-      break
-    }
-    case 'removed_email': {
-      subject = `You removed an email from your account`
-      actionDescription = `You removed the email '${payload.extra2}' from your account.`
-      break
-    }
-    case 'linked_account': {
-      subject = `You linked a third-party OAuth provider to your account`
-      actionDescription = `You linked a third-party OAuth provider ('${payload.extra1}') to your account.`
-      break
-    }
-    case 'unlinked_account': {
-      subject = `You removed a link between your account and a third-party OAuth provider`
-      actionDescription = `You removed a link between your account and a third-party OAuth provider ('${payload.extra1}').`
-      break
-    }
-    case 'reset_password': {
-      subject = `You reset your password`
-      actionDescription = `You reset your password.`
-      break
-    }
-    case 'change_password': {
-      subject = `You changed your password`
-      actionDescription = `You changed your password.`
-      break
-    }
-    default: {
-      // Ensure we've handled all cases above
-      const neverPayload: never = payload
-      console.error(`Audit action '${(neverPayload as any).type}' not understood; ignoring.`)
-      return
-    }
+  case 'added_email': {
+    subject = `You added an email to your account`
+    actionDescription = `You added the email '${payload.extra2}' to your account.`
+    break
+  }
+  case 'removed_email': {
+    subject = `You removed an email from your account`
+    actionDescription = `You removed the email '${payload.extra2}' from your account.`
+    break
+  }
+  case 'linked_account': {
+    subject = `You linked a third-party OAuth provider to your account`
+    actionDescription = `You linked a third-party OAuth provider ('${payload.extra1}') to your account.`
+    break
+  }
+  case 'unlinked_account': {
+    subject = `You removed a link between your account and a third-party OAuth provider`
+    actionDescription = `You removed a link between your account and a third-party OAuth provider ('${payload.extra1}').`
+    break
+  }
+  case 'reset_password': {
+    subject = `You reset your password`
+    actionDescription = `You reset your password.`
+    break
+  }
+  case 'change_password': {
+    subject = `You changed your password`
+    actionDescription = `You changed your password.`
+    break
+  }
+  default: {
+    // Ensure we've handled all cases above
+    const neverPayload = payload
+    console.error(`Audit action '${neverPayload.type as string}' not understood; ignoring.`)
+    return
+  }
   }
 
   const {
@@ -123,7 +123,7 @@ const task: Task = async (rawPayload, { addJob, withPgClient, job }) => {
     }>('select * from app_public.users where id = $1', [payload.user_id]),
   )
 
-  if (!user) {
+  if (! user) {
     console.error(
       `User '${payload.user_id}' no longer exists. (Tried to audit: ${actionDescription})`,
     )

@@ -24,7 +24,7 @@ const PrimaryKeyMutationsOnlyPlugin: Plugin = builder => {
     'build',
     build => {
       build.pgIntrospectionResultsByKind.constraint.forEach((constraint: PgConstraint) => {
-        if (! constraint.tags.omit && constraint.type !== 'p') {
+        if (!constraint.tags.omit && constraint.type !== 'p') {
           constraint.tags.omit = ['update', 'delete']
         }
       })
@@ -37,7 +37,7 @@ const PrimaryKeyMutationsOnlyPlugin: Plugin = builder => {
 }
 
 function uuidOrNull(input: string | number | null | undefined): UUID | null {
-  if (! input) return null
+  if (!input) return null
   const str = String(input)
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str)) {
     return str

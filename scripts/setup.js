@@ -14,7 +14,7 @@ const {
 const RECONNECT_BASE_DELAY = 100
 const RECONNECT_MAX_DELAY = 30000
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 const pgPool = new pg.Pool({ connectionString: ROOT_DATABASE_URL })
 

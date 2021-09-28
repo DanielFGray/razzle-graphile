@@ -31,10 +31,10 @@ const task: Task = async (inPayload, { addJob, withPgClient }) => {
         where user_emails.id = $1
           and user_emails.is_verified is false
       `,
-      [userEmailId],
+    [userEmailId],
     ),
   )
-  if (!userEmail) {
+  if (! userEmail) {
     console.warn(
       `user_emails__send_verification task for non-existent userEmail ignored (userEmailId = ${userEmailId})`,
     )

@@ -10,12 +10,13 @@ const validName = str => {
   return true
 }
 
+const generatePassword = (length, type = 'base64') =>
+  crypto.randomBytes(length).toString(type).replace(/\W/g, '_').toLowerCase()
+
 async function main() {
   try {
     const stat = await fs.stat('.env')
-    if (stat.isFile()) {
-      process.exit(0)
-    }
+    process.exit(0)
   } catch(e) {}
 
   const { ROOT_DATABASE_USER } = await inquirer.prompt([{ name: 'ROOT_DATABASE_USER', message: 'superuser database username:', default: 'postgres', prefix: '' }])

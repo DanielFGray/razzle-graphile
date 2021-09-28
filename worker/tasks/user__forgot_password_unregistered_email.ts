@@ -1,15 +1,15 @@
-import { projectName } from "@app/config";
-import { Task } from "graphile-worker";
+import { projectName } from "@app/config"
+import { Task } from "graphile-worker"
 
-import { SendEmailPayload } from "./send_email";
+import { SendEmailPayload } from "./send_email"
 
 interface UserForgotPasswordUnregisteredEmailPayload {
   email: string;
 }
 
 const task: Task = async (inPayload, { addJob }) => {
-  const payload: UserForgotPasswordUnregisteredEmailPayload = inPayload as any;
-  const { email } = payload;
+  const payload: UserForgotPasswordUnregisteredEmailPayload = inPayload as any
+  const { email } = payload
 
   const sendEmailPayload: SendEmailPayload = {
     options: {
@@ -20,8 +20,8 @@ const task: Task = async (inPayload, { addJob }) => {
     variables: {
       url: process.env.ROOT_URL,
     },
-  };
-  await addJob("send_email", sendEmailPayload);
-};
+  }
+  await addJob("send_email", sendEmailPayload)
+}
 
-module.exports = task;
+module.exports = task

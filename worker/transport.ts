@@ -15,7 +15,7 @@ const etherealFilename = `${process.cwd()}/.ethereal`
 let logged = false
 
 export default function getTransport(): Promise<nodemailer.Transporter> {
-  if (!transporterPromise) {
+  if (! transporterPromise) {
     transporterPromise = (async () => {
       if (isTest) return nodemailer.createTransport({ jsonTransport: true })
 
@@ -28,7 +28,7 @@ export default function getTransport(): Promise<nodemailer.Transporter> {
           account = await nodemailer.createTestAccount()
           await writeFile(etherealFilename, JSON.stringify(account))
         }
-        if (!logged) {
+        if (! logged) {
           logged = true
           console.log()
           console.log()

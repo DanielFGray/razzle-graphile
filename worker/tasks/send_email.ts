@@ -63,9 +63,9 @@ export default task
 
 const templatePromises = {}
 function loadTemplate(template: string) {
-  if (isDev || !templatePromises[template]) {
+  if (isDev || ! templatePromises[template]) {
     templatePromises[template] = (async () => {
-      if (!template.match(/^[a-zA-Z0-9_.-]+$/)) {
+      if (! (/^[a-zA-Z0-9_.-]+$/.exec(template))) {
         throw new Error(`Disallowed template name '${template}'`)
       }
       const templateString = await fs.readFile(`${__dirname}/../../templates/${template}`, 'utf8')

@@ -27,13 +27,13 @@ async function main() {
   const { DATABASE_VISITOR } = await inquirer.prompt([{ name: 'DATABASE_VISITOR', message: 'visitor role name:', default: 'visitor', prefix: '' }])
   const { PORT } = await inquirer.prompt([{ name: 'PORT', message: 'application port:', default: '3000', prefix: '' }])
 
-  const ROOT_DATABASE_PASSWORD = crypto.randomBytes(12).toString('hex')
-  const DATABASE_OWNER_PASSWORD = crypto.randomBytes(12).toString('hex')
-  const DATABASE_AUTHENTICATOR_PASSWORD = crypto.randomBytes(12).toString('hex')
+  const ROOT_DATABASE_PASSWORD = generatePassword(12)
+  const DATABASE_OWNER_PASSWORD = generatePassword(12)
+  const DATABASE_AUTHENTICATOR_PASSWORD = generatePassword(12)
+  const SECRET = generatePassword(32, 'hex')
   const ROOT_DATABASE_URL = `postgres://${ROOT_DATABASE_USER}:${ROOT_DATABASE_PASSWORD}@${DATABASE_HOST}/template1`
   const DATABASE_URL = `postgres://${DATABASE_OWNER}:${DATABASE_OWNER_PASSWORD}@${DATABASE_HOST}/${DATABASE_NAME}`
   const AUTH_DATABASE_URL = `postgres://${DATABASE_AUTHENTICATOR}:${DATABASE_AUTHENTICATOR_PASSWORD}@${DATABASE_HOST}/${DATABASE_NAME}`
-  const SECRET = crypto.randomBytes(32).toString('hex')
   const RAZZLE_ROOT_URL = `http://localhost:${PORT}`
 
   const envFile = `NODE_ENV=development

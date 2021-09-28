@@ -63,11 +63,17 @@ async function main() {
      * This is the root role for the database
      * IMPORTANT: don't grant SUPERUSER in production, we only need this so we can load the watch fixtures!
      */
-    // create role ${DATABASE_OWNER} with login password '${DATABASE_OWNER_PASSWORD}' superuser
-    await client.query(`create role ${DATABASE_OWNER} with login password '${DATABASE_OWNER_PASSWORD}' noinherit`)
-    console.log(`CREATE ROLE ${DATABASE_OWNER}`)
+    if (process.env.NODE_ENV === 'production') {
+      await client.query(`create role ${DATABASE_OWNER} with login password '${DATABASE_OWNER_PASSWORD}' noinherit`)
+      console.log(`CREATE ROLE ${DATABASE_OWNER}`)
+    } else {
+      await client.query(`create role ${DATABASE_OWNER} with login password '${DATABASE_OWNER_PASSWORD}' superuser`)
+      console.log(`CREATE ROLE ${DATABASE_OWNER} SUPERUSER`)
+    }
+
     await client.query(`grant all privileges on database ${DATABASE_NAME} to ${DATABASE_OWNER}`)
     console.log(`GRANT ${DATABASE_OWNER}`)
+
     // This is the no-access role that PostGraphile will run as by default
     await client.query(`create role ${DATABASE_AUTHENTICATOR} with login password '${DATABASE_AUTHENTICATOR_PASSWORD}' noinherit`)
     console.log(`CREATE ROLE ${DATABASE_AUTHENTICATOR}`)

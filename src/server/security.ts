@@ -1,5 +1,4 @@
-import 'dotenv/config'
-import _csrf from 'csurf'
+import csurf from 'csurf'
 import _helmet from 'helmet'
 import type { RequestHandler } from 'express'
 
@@ -43,7 +42,7 @@ export const helmet = _helmet(
     },
 )
 
-const csrfProtection = _csrf({
+const csrfProtection = csurf({
   // Store to the session rather than a Cookie
   cookie: false,
 
@@ -66,6 +65,11 @@ export const csrf: RequestHandler = (req, res, next) => {
   csrfProtection(req, res, next)
 }
 
+export const addSameOrigin: RequestHandler = (req, _res, next) => {
+  req.isSameOrigin = ! req.get('origin') || req.get('origin') === ROOT_URL
+  next()
+}
+
 declare module 'express-serve-static-core' {
   interface Request {
     /**
@@ -75,9 +79,4 @@ declare module 'express-serve-static-core' {
      */
     isSameOrigin?: boolean
   }
-}
-
-export const addOrigin: RequestHandler = (req, _res, next) => {
-  req.isSameOrigin = ! req.get('origin') || req.get('origin') === ROOT_URL
-  next()
 }

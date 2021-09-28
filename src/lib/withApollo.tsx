@@ -5,7 +5,6 @@ import { onError } from '@apollo/client/link/error'
 import { HttpLink } from '@apollo/client/link/http'
 import { getOperationAST, GraphQLError, print } from 'graphql'
 import { Client, createClient } from 'graphql-ws'
-import { ApolloProvider as Apollo_Provider } from '@apollo/client/react'
 
 let wsClient: Client | null = null
 
@@ -98,7 +97,7 @@ export function createApolloClient(): ApolloClient<unknown> {
   })
 
   apolloClient = new ApolloClient({
-    link: ApolloLink.from([onErrorLink, httpLink]),
+    link: ApolloLink.from([onErrorLink, mainLink]),
     // cache: new InMemoryCache().restore(initialState || {}),
     cache: new InMemoryCache({
       dataIdFromObject: o =>

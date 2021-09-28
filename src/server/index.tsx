@@ -1,7 +1,7 @@
 import express, { static as staticFiles } from 'express'
 import morgan from 'morgan'
-import { helmet, addOrigin, csrf } from './security'
-import { errorRequestHandler } from '../handleErrors'
+import { helmet, addSameOrigin, csrf } from './security'
+import { errorRequestHandler } from 'lib'
 import { installSessionMiddleware } from './sessions'
 import { installPassport } from './passport'
 import { createPostgraphileMiddleware } from './postgraphile'
@@ -14,14 +14,14 @@ const app = express()
 app.locals = { websocketMiddlewares: [] }
 app.set('subscriptions', true)
 app.set('trust proxy', 1)
-app.disable('x-powered-by')
+app.set('x-powered-by', 'postgraphile')
 app.use(morgan(isDev ? 'dev' : 'combined'))
 // app.use(helmet) // FIXME disabled because CSP issues
 app.use(staticFiles(publicDir))
-app.use(addOrigin)
+app.use(addSameOrigin)
 app.use(errorRequestHandler)
 installSessionMiddleware(app)
-// app.use(csrf)
+app.use(csrf)
 installPassport(app)
 createPostgraphileMiddleware(app)
 app.get('/*', SSR)

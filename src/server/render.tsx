@@ -5,31 +5,10 @@ import { HelmetProvider, FilledContext } from 'react-helmet-async'
 import { ApolloProvider, ApolloClient, ApolloLink, InMemoryCache } from '@apollo/client'
 import { renderToStringWithData } from '@apollo/client/react/ssr'
 import { onError } from '@apollo/client/link/error'
-import { GraphileApolloLink } from '../lib/GraphileApolloLink'
-import Layout from '../client/App'
+import { GraphileApolloLink as GraphileLink } from '@/lib'
+import Layout from '@/client/App'
 import { getPostgraphileMiddleware } from './postgraphile'
-
-interface Assets {
-  [entrypoint: string]: { [asset: string]: ReadonlyArray<string> }
-}
-
-const assets: Assets = require(process.env.RAZZLE_ASSETS_MANIFEST!)
-
-function cssLinksFromAssets(entrypoint: string) {
-  return (
-    assets[entrypoint]?.css
-      ?.map(asset => `<link rel="stylesheet" href="${asset}" type="text/css">`)
-      .join('') ?? ''
-  )
-}
-
-function jsScriptTagsFromAssets(entrypoint: string, extra = '') {
-  return (
-    assets[entrypoint]?.js
-      ?.map(asset => `<script src="${asset}" type="text/javascript"${extra}></script>`)
-      .join('') ?? ''
-  )
-}
+import { renderHtml } from './html'
 
 export async function render(
   req: Express.Request,
@@ -47,6 +26,7 @@ export async function render(
     }
 > {
   let status = 200
+  const postgraphileMiddleware = getPostgraphileMiddleware()
   const apolloClient = new ApolloClient({
     ssrMode: true,
     cache: new InMemoryCache(),
@@ -55,11 +35,7 @@ export async function render(
         if (graphQLErrors) console.error(...graphQLErrors)
         if (networkError) console.error(networkError)
       }),
-      new GraphileApolloLink({
-        req,
-        res,
-        postgraphileMiddleware: getPostgraphileMiddleware(),
-      }),
+      new GraphileLink({ req, res, postgraphileMiddleware }),
     ]),
   })
   const routerCtx: StaticRouterContext = {}
@@ -75,6 +51,8 @@ export async function render(
     </ApolloProvider>
   )
 
+  const markup = await renderToStringWithData(App)
+
   if (routerCtx.statusCode) status = routerCtx.statusCode
   if (routerCtx.url) {
     return {
@@ -84,34 +62,11 @@ export async function render(
     }
   }
 
-  const markup = await renderToStringWithData(App)
   const { helmet } = helmetCtx as FilledContext
   const data = apolloClient.extract()
   Object.assign(data, { CSRF_TOKEN: req.csrfToken() })
 
-  // prettier-ignore
-  const html = `<!doctype html>
-<html ${helmet.htmlAttributes.toString()}>
-  <head>
-    ${helmet.title.toString()}
-    ${helmet.meta.toString()}
-    ${helmet.style.toString()}
-    ${helmet.link.toString()}
-    ${cssLinksFromAssets('client')}
-  </head>
-  <body${helmet.bodyAttributes.toString()}>
-    ${helmet.noscript.toString()}
-    <div id="root">${markup}</div>
-    <script type="text/javascript">
-      window.__INIT_DATA__ = ${JSON.stringify(
-        data,
-        null,
-        process.env.NODE_ENV === 'development' ? 2 : undefined,
-      ).replace(/</g, '\\u003c')}
-    </script>
-    ${jsScriptTagsFromAssets('client', ' defer crossorigin')}
-  </body>
-</html>`
+  const html = renderHtml({ helmet, markup, data })
 
   return { type: 'payload', status, html }
 }
@@ -120,8 +75,7 @@ export async function SSR(req: Express.Request, res: Express.Response): Promise<
   const renderResult = await render(req, res)
   res.status(renderResult.status)
   if (renderResult.type === 'redirect') {
-    res.redirect(renderResult.redirect)
-  } else {
-    res.send(renderResult.html)
+    return res.redirect(renderResult.redirect)
   }
+  res.send(renderResult.html)
 }

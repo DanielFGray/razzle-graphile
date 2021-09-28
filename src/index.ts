@@ -16,7 +16,7 @@ if (module.hot) {
 
 const port = process.env.PORT ? Number(process.env.PORT) : 3000
 
-export default http.createServer(app.handle.bind(app))
+export default http.createServer((req, res) => app.handle(req, res))
   .listen(port, () => {
     console.log(`> App started http://localhost:${port}`)
   })

@@ -14,8 +14,12 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react",
-    "baseUrl": "src"
-  },
-  "include": ["src", "codegen.ts"],
-  "exclude": ["build/*", "cache/*"]
+    "baseUrl": "src",
+    "paths": {
+      "@/*": ["./*"],
+      "~generated": ["./generated/*"],
+      "~lib/*": ["./lib/*"],
+      "~components/*": ["./components/*"]
+    }
+  }
 }

@@ -4,7 +4,7 @@ import passport from 'passport'
 import { Strategy as GitHubStrategy } from 'passport-github2'
 // import { Strategy as TwitterStrategy } from 'passport-twitter'
 // import { Strategy as RedditStrategy } from 'passport-reddit'
-import { ERROR_MESSAGE_OVERRIDES } from '../handleErrors'
+import { ERROR_MESSAGE_OVERRIDES } from '@/lib'
 
 import { rootPgPool } from './dbPools'
 
@@ -57,6 +57,90 @@ const setReturnTo: RequestHandler = (req, _res, next) => {
 }
 
 const noop = (_: any): void => {}
+
+export function installPassport(app: Express): void {
+  passport.serializeUser((sessionObject: DbSession, done) => {
+    done(null, sessionObject.session_id)
+  })
+  passport.deserializeUser((session_id: string, done) => {
+    done(null, { session_id })
+  })
+  ;[passport.initialize(), passport.session()].forEach(m => {
+    app.use(m)
+    app.locals.websocketMiddlewares.push(m)
+  })
+
+  app.get('/logout', (req, res) => {
+    req.logout()
+    res.redirect('/')
+  })
+
+  if (process.env.GITHUB_KEY && process.env.GITHUB_SECRET) {
+    installPassportStrategy({
+      app,
+      service: 'github',
+      strategy: GitHubStrategy,
+      strategyConfig: {
+        clientID: process.env.GITHUB_KEY,
+        clientSecret: process.env.GITHUB_SECRET,
+        scope: ['user:email'],
+      },
+      authenticateConfig: {},
+      getUserInformation: ({ profile }) => ({
+        id: profile.id,
+        displayName: profile?.displayName ?? profile.username,
+        username: profile.username,
+        avatarUrl: profile?.photos?.[0]?.value,
+        email: profile.email || profile?.emails?.[0]?.value,
+      }),
+      tokenNames: ['token', 'tokenSecret'],
+    })
+  }
+
+  // if (process.env.TWITTER_KEY && process.env.TWITTER_SECRET) {
+  //   installPassportStrategy({
+  //     app,
+  //     service: 'twitter',
+  //     strategy: TwitterStrategy,
+  //     strategyConfig: {
+  //       clientID: process.env.TWITTER_KEY,
+  //       clientSecret: process.env.TWITTER_SECRET,
+  //       scope: ['user:email'],
+  //     },
+  //     authenticateConfig: {},
+  //     getUserInformation: ({ profile }) => ({
+  //       id: profile.id,
+  //       displayName: profile?.displayName ?? profile.username,
+  //       username: profile.username,
+  //       avatarUrl: profile?.photos?.[0]?.value,
+  //       email: profile.email || profile?.emails?.[0]?.value,
+  //     }),
+  //     tokenNames: ['token', 'tokenSecret'],
+  //   })
+  // }
+
+  // if (process.env.GOOGLE_KEY && process.env.GOOGLE_SECRET) {
+  //   installPassportStrategy({
+  //     app,
+  //     service: 'google',
+  //     strategy: GoogleStrategy,
+  //     strategyConfig: {
+  //       clientID: process.env.GOOGLE_KEY,
+  //       clientSecret: process.env.GOOGLE_SECRET,
+  //       scope: ['user:email'],
+  //     },
+  //     authenticateConfig: {},
+  //     getUserInformation: ({ profile }) => ({
+  //       id: profile.id,
+  //       displayName: profile?.displayName ?? profile.username,
+  //       username: profile.username,
+  //       avatarUrl: profile?.photos?.[0]?.value,
+  //       email: profile.email || profile?.emails?.[0]?.value,
+  //     }),
+  //     tokenNames: ['token', 'tokenSecret'],
+  //   })
+  // }
+}
 
 export function installPassportStrategy({
   app,
@@ -209,90 +293,6 @@ declare global {
       session_id: string
     }
   }
-}
-
-export function installPassport(app: Express): void {
-  passport.serializeUser((sessionObject: DbSession, done) => {
-    done(null, sessionObject.session_id)
-  })
-  passport.deserializeUser((session_id: string, done) => {
-    done(null, { session_id })
-  })
-  ;[passport.initialize(), passport.session()].forEach(m => {
-    app.use(m)
-    app.locals.websocketMiddlewares.push(m)
-  })
-
-  app.get('/logout', (req, res) => {
-    req.logout()
-    res.redirect('/')
-  })
-
-  if (process.env.GITHUB_KEY && process.env.GITHUB_SECRET) {
-    installPassportStrategy({
-      app,
-      service: 'github',
-      strategy: GitHubStrategy,
-      strategyConfig: {
-        clientID: process.env.GITHUB_KEY,
-        clientSecret: process.env.GITHUB_SECRET,
-        scope: ['user:email'],
-      },
-      authenticateConfig: {},
-      getUserInformation: ({ profile }) => ({
-        id: profile.id,
-        displayName: profile?.displayName ?? profile.username,
-        username: profile.username,
-        avatarUrl: profile?.photos?.[0]?.value,
-        email: profile.email || profile?.emails?.[0]?.value,
-      }),
-      tokenNames: ['token', 'tokenSecret'],
-    })
-  }
-
-  // if (process.env.TWITTER_KEY && process.env.TWITTER_SECRET) {
-  //   installPassportStrategy({
-  //     app,
-  //     service: 'twitter',
-  //     strategy: TwitterStrategy,
-  //     strategyConfig: {
-  //       clientID: process.env.TWITTER_KEY,
-  //       clientSecret: process.env.TWITTER_SECRET,
-  //       scope: ['user:email'],
-  //     },
-  //     authenticateConfig: {},
-  //     getUserInformation: ({ profile }) => ({
-  //       id: profile.id,
-  //       displayName: profile?.displayName ?? profile.username,
-  //       username: profile.username,
-  //       avatarUrl: profile?.photos?.[0]?.value,
-  //       email: profile.email || profile?.emails?.[0]?.value,
-  //     }),
-  //     tokenNames: ['token', 'tokenSecret'],
-  //   })
-  // }
-
-  // if (process.env.REDDIT_KEY && process.env.REDDIT_SECRET) {
-  //   installPassportStrategy({
-  //     app,
-  //     service: 'reddit',
-  //     strategy: RedditStrategy,
-  //     strategyConfig: {
-  //       clientID: process.env.REDDIT_KEY,
-  //       clientSecret: process.env.REDDIT_SECRET,
-  //       scope: ['user:email'],
-  //     },
-  //     authenticateConfig: {},
-  //     getUserInformation: ({ profile }) => ({
-  //       id: profile.id,
-  //       displayName: profile?.displayName ?? profile.username,
-  //       username: profile.username,
-  //       avatarUrl: profile?.photos?.[0]?.value,
-  //       email: profile.email || profile?.emails?.[0]?.value,
-  //     }),
-  //     tokenNames: ['token', 'tokenSecret'],
-  //   })
-  // }
 }
 
 export const PassportLoginPlugin = makeExtendSchemaPlugin(build => ({

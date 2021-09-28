@@ -1,5 +1,5 @@
 import path from 'path'
-import { makePluginHook, postgraphile, HttpRequestHandler } from 'postgraphile'
+import { makePluginHook, postgraphile } from 'postgraphile'
 import PgPubsub from '@graphile/pg-pubsub'
 import PgSimplifyInflectorPlugin from '@graphile-contrib/pg-simplify-inflector'
 import { makePgSmartTagsFromFilePlugin } from 'postgraphile/plugins'
@@ -9,12 +9,11 @@ import { Express } from 'express'
 import { PassportLoginPlugin } from './passport'
 import SubscriptionsPlugin from './graphile-subscriptions'
 import { rootPgPool, authPgPool } from './dbPools'
-import { handleErrors } from '../handleErrors'
+import { handleErrors } from '@/lib'
 import { RemoveForeignKeyFieldsPlugin } from 'postgraphile-remove-foreign-key-fields-plugin'
-import { makeWorkerUtils } from "graphile-worker"
+import { makeWorkerUtils, WorkerUtils } from 'graphile-worker'
 
-const isTest = process.env.NODE_ENV === 'test'
-const isDev = process.env.NODE_ENV === 'development'
+const isDev = process.env.NODE_ENV !== 'production'
 
 type postgraphile = ReturnType<typeof postgraphile>
 type PgConstraint = any
@@ -57,29 +56,12 @@ const RemoveQueryQueryPlugin: Plugin = builder => {
   })
 }
 
-const OrdersPlugin = makeAddPgTableOrderByPlugin(
-  'app_public',
-  'organization_memberships',
-  ({ pgSql: sql }) => {
-    const sqlIdentifier = sql.identifier(Symbol('member'))
-    return orderByAscDesc(
-      'MEMBER_NAME',
-      // @ts-ignore
-      ({ queryBuilder }) => sql.fragment`(
-        select ${sqlIdentifier}.name
-        from app_public.users as ${sqlIdentifier}
-        where ${sqlIdentifier}.id = ${queryBuilder.getTableAlias()}.user_id
-        limit 1
-      )`,
-    )
-  },
-)
-
 // We're using JSONC for VSCode compatibility; also using an explicit file
 /* path keeps the tests happy. */
 const TagsFilePlugin = makePgSmartTagsFromFilePlugin(path.resolve('./src/postgraphile.tags.jsonc'))
 
 let middleware: postgraphile
+export let worker: Promise<WorkerUtils>
 export function getPostgraphileMiddleware(): postgraphile {
   if (middleware) return middleware
   throw new Error('middleware not defined yet!')
@@ -87,7 +69,8 @@ export function getPostgraphileMiddleware(): postgraphile {
 
 export function createPostgraphileMiddleware(app: Express): postgraphile {
   if (middleware) return middleware
-  middleware = postgraphile(authPgPool, 'app_public', {
+  void makeWorkerUtils({ pgPool: rootPgPool })
+  middleware = postgraphile(authPgPool, ['app_public'], {
     /* This is for PostGraphile server plugins: https://www.graphile.org/postgraphile/plugins/ */
     /* Add the pub/sub realtime provider */
     pluginHook: app.get('subscriptions') ? makePluginHook([PgPubsub]) : undefined,
@@ -98,7 +81,7 @@ export function createPostgraphileMiddleware(app: Express): postgraphile {
      * On development, we want to deal nicely with issues in the database.
      * For these reasons, we're going to keep retryOnInitFail enabled for both environments.
      */
-    retryOnInitFail: ! isTest,
+    retryOnInitFail: true,
 
     /* Add websocket support to the PostGraphile server; you still need to use a subscriptions plugin such as @graphile/pg-pubsub */
     subscriptions: app.get('subscriptions'),
@@ -119,7 +102,7 @@ export function createPostgraphileMiddleware(app: Express): postgraphile {
     setofFunctionsContainNulls: false,
 
     /* Enable GraphiQL in development */
-    graphiql: isDev || !! process.env.ENABLE_GRAPHIQL,
+    graphiql: isDev || Boolean(process.env.ENABLE_GRAPHIQL),
     /* Use a fancier GraphiQL with `prettier` for formatting, and header editing. */
     enhanceGraphiql: true,
     /* Allow EXPLAIN in development (you can replace this with a callback function
@@ -165,7 +148,7 @@ export function createPostgraphileMiddleware(app: Express): postgraphile {
 
     /* Keep data/schema.graphql up to date */
     sortExport: true,
-    exportGqlSchemaPath: isDev ? './generated-schema.gql' : undefined,
+    exportGqlSchemaPath: isDev ? './src/generated/schema.gql' : undefined,
 
     /*
      * Plugins to enhance the GraphQL schema, see:
@@ -190,8 +173,6 @@ export function createPostgraphileMiddleware(app: Express): postgraphile {
       PassportLoginPlugin,
       /* Adds realtime features to our GraphQL schema */
       SubscriptionsPlugin,
-      /* Adds custom orders to our GraphQL schema */
-      OrdersPlugin,
     ],
 
     /*
@@ -272,5 +253,4 @@ export function createPostgraphileMiddleware(app: Express): postgraphile {
     },
   })
   app.use(middleware)
-  makeWorkerUtils({ pgPool: rootPgPool })
 }

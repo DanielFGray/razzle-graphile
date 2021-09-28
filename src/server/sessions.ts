@@ -1,8 +1,8 @@
 import ConnectPgSimple from 'connect-pg-simple'
-// import ConnectRedis from "connect-redis";
 import { Express, RequestHandler } from 'express'
 import session from 'express-session'
 // import * as redis from "redis";
+// import ConnectRedis from "connect-redis";
 
 import { rootPgPool } from './dbPools'
 

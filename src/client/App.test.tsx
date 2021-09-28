@@ -2,12 +2,13 @@ import React from 'react'
 import { render } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
-import { ApolloProvider } from '../lib/withApollo'
+import { ApolloProvider } from '@apollo/client/react'
+import { createApolloClient } from '~lib/withApollo'
 import App from '../App'
 
 function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <ApolloProvider>
+  <ApolloProvider client={createApolloClient()}>
       <HelmetProvider>
         <MemoryRouter>
           {children}

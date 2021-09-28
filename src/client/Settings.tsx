@@ -16,7 +16,6 @@ import { useErrors, extractError, getCodeFromError } from '@/lib'
 
 export default function Settings(): JSX.Element {
   const query = useSharedQuery()
-  console.log({ settingsQuery: query })
   return (
     <Layout query={query} forbidWhen={auth => auth.LOGGED_OUT}>
       <UserProfile data={query.data} />
@@ -117,7 +116,7 @@ function PasswordSettings({ data }: { data: SharedQuery }) {
     >
       <fieldset>
         <legend>account settings</legend>
-        {data.currentUser.hasPassword ? (
+        {data?.currentUser.hasPassword ? (
           <label>
             <span>{'old password: '}</span>
             <input type="password" name="old-password" required />

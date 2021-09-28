@@ -37,8 +37,7 @@ export function Layout<T extends Apollo.QueryResult<SharedLayout_QueryFragment>>
   ) {
     return <Redirect to="/" />
   } else if (
-    query.data &&
-    query.data.currentUser === null &&
+    query.data?.currentUser === null &&
     ! query.loading &&
     ! query.error &&
     forbidsLoggedOut

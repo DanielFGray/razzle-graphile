@@ -16,10 +16,7 @@
     "jsx": "react",
     "baseUrl": "src",
     "paths": {
-      "@/*": ["./*"],
-      "~generated": ["./generated/*"],
-      "~lib/*": ["./lib/*"],
-      "~components/*": ["./components/*"]
+      "@/*": ["./*"]
     }
   }
 }

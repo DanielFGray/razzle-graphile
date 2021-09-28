@@ -1,7 +1,7 @@
 import express, { static as staticFiles } from 'express'
 import morgan from 'morgan'
 import { helmet, addSameOrigin, csrf } from './security'
-import { errorRequestHandler } from 'lib'
+import { errorRequestHandler } from '@/lib'
 import { installSessionMiddleware } from './sessions'
 import { installPassport } from './passport'
 import { createPostgraphileMiddleware } from './postgraphile'

@@ -1,5 +1,9 @@
 schema: ./src/generated/schema.gql
 documents: ./src/queries/**/*.gql
+config:
+  scalars:
+    UUID: string
+    Username: string
 generates:
   ./src/generated/index.ts:
     plugins:

@@ -3,7 +3,7 @@
   "version": "4.0.4",
   "license": "MIT",
   "scripts": {
-    "postinstall": "typesync --ignoredeps=dev",
+    "typesync": "typesync --ignoredeps=dev",
     "prestart": "run-p -s db:start",
     "start": "run-p -s db:watch watch:gqlgen watch:debug",
     "build": "razzle build --noninteractive",

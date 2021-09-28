@@ -24,6 +24,8 @@
     "db:dump-data": "docker-compose run db pg_dump --no-sync --data-only --no-owner --no-comments --exclude-schema=graphile_migrate --exclude-schema=graphile_worker > ./data.sql",
     "generate-env-file": "node scripts/generateEnvFile.js",
     "setup": "run-s -s generate-env-file db:start db:setup db:reset start",
+    "lint:js": "eslint --cache --ext=.js,.jsx,.ts,.tsx scripts src worker",
+    "lint:fix": "run-p -s 'lint:js --fix'",
     "test": "razzle test --env=jsdom"
   },
   "dependencies": {

@@ -13,32 +13,33 @@ begin
   from app_public.users
   where id = app_public.current_user_id();
 
-  if not (v_user is null) then
-    -- Load their secrets
-    select * into v_user_secret from app_private.user_secrets
-    where user_secrets.user_id = v_user.id;
-
-    if v_user_secret.password_hash = crypt(old_password, v_user_secret.password_hash) then
-      perform app_private.assert_valid_password(new_password);
-      -- Reset the password as requested
-      update app_private.user_secrets
-      set
-        password_hash = crypt(new_password, gen_salt('bf'))
-      where user_secrets.user_id = v_user.id;
-      perform graphile_worker.add_job(
-        'user__audit',
-        json_build_object(
-          'type', 'change_password',
-          'user_id', v_user.id,
-          'current_user_id', app_public.current_user_id()
-        ));
-      return true;
-    else
-      raise exception 'Incorrect password' using errcode = 'CREDS';
-    end if;
-  else
+  if v_user is null then
     raise exception 'You must log in to change your password' using errcode = 'LOGIN';
   end if;
+
+  -- Load their secrets
+  select * into v_user_secret from app_private.user_secrets
+  where user_secrets.user_id = v_user.id;
+
+  if v_user_secret.password_hash != crypt(old_password, v_user_secret.password_hash) then
+    raise exception 'Incorrect password' using errcode = 'CREDS';
+  end if;
+
+  perform app_private.assert_valid_password(new_password);
+
+  -- Reset the password as requested
+  update app_private.user_secrets
+  set
+    password_hash = crypt(new_password, gen_salt('bf'))
+  where user_secrets.user_id = v_user.id;
+  perform graphile_worker.add_job(
+    'user__audit',
+    json_build_object(
+      'type', 'change_password',
+      'user_id', v_user.id,
+      'current_user_id', app_public.current_user_id()
+    ));
+  return true;
 end;
 $$ language plpgsql strict volatile security definer set search_path to pg_catalog, public, pg_temp;
 

@@ -23,6 +23,7 @@ begin
   if password is not null then
     perform app_private.assert_valid_password(password);
   end if;
+
   if email is null then
     raise exception 'Email is required' using errcode = 'MODAT';
   end if;
@@ -216,33 +217,34 @@ begin
       end if;
     end if;
   end if;
+
   if v_matched_user_id is null and f_user_id is null and v_matched_authentication_id is null then
     -- Create and return a new user account
     return app_private.register_user(f_service, f_identifier, f_profile, f_auth_details, true);
-  else
-    if v_matched_authentication_id is not null then
-      update app_public.user_authentications
-        set details = f_profile
-        where id = v_matched_authentication_id;
-      update app_private.user_authentication_secrets
-        set details = f_auth_details
-        where user_authentication_id = v_matched_authentication_id;
-      update app_public.users
-        set
-          name = coalesce(users.name, v_name),
-          avatar_url = coalesce(users.avatar_url, v_avatar_url)
-        where id = v_matched_user_id
-        returning  * into v_user;
-      return v_user;
-    else
-      -- v_matched_authentication_id is null
-      -- -> v_matched_user_id is null (they're paired)
-      -- -> f_user_id is not null (because the if clause above)
-      -- -> v_matched_authentication_id is not null (because of the separate if block above creating a user_authentications)
-      -- -> contradiction.
-      raise exception 'This should not occur';
-    end if;
   end if;
+
+  if v_matched_authentication_id is not null then
+    -- v_matched_authentication_id is null
+    -- -> v_matched_user_id is null (they're paired)
+    -- -> f_user_id is not null (because the if clause above)
+    -- -> v_matched_authentication_id is not null (because of the separate if block above creating a user_authentications)
+    -- -> contradiction.
+    raise exception 'This should not occur';
+  end if;
+
+  update app_public.user_authentications
+    set details = f_profile
+    where id = v_matched_authentication_id;
+  update app_private.user_authentication_secrets
+    set details = f_auth_details
+    where user_authentication_id = v_matched_authentication_id;
+  update app_public.users
+    set
+      name = coalesce(users.name, v_name),
+      avatar_url = coalesce(users.avatar_url, v_avatar_url)
+    where id = v_matched_user_id
+    returning  * into v_user;
+  return v_user;
 end;
 $$ language plpgsql volatile security definer set search_path to pg_catalog, public, pg_temp;
 

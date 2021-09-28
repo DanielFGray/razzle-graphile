@@ -9,10 +9,13 @@ make sure you have `yarn`, `docker` and `docker-compose` installed
 ```
 yarn
 yarn setup
-yarn start
 ```
 
-the setup script will generate an `.env` file, launch a postgres container via `docker-compose` and run migrations
+> `npm` will *probably* work instead of `yarn` but it's not tested by the author
+
+the setup script will generate an `.env` file if it doesnt exist, launch a postgres container via `docker-compose`, run migrations, and then call `yarn start`
+
+when you're finished, you can `yarn db:stop` (an alias for `docker-compose stop`) to preserve your data, or `yarn db:down` will purge the docker volume and your data
 
 ## differences from graphile/starter
 
@@ -22,21 +25,15 @@ the setup script will generate an `.env` file, launch a postgres container via `
 	* allows quicker page rebuilds during development (at the cost of slower startup)
   * `react-router` and `react-helmet-async` are used for routing and `<head>` metadata
 
-### libraries used:
-* [**postgraphile**](https://graphile.org/postgraphile)
-* [**graphile-worker**](https://github.com/graphile/worker)
-* [**graphile-migrate**](https://github.com/graphile/migrate)
-* [**razzle**](https://razzlejs.org)
-* [**react**](https://reactjs.org)
-* [**react-router**](https://reactrouter.com)
-* [**react-helmet-async**](https://github.com/staylor/react-helmet-async)
-* [**express**](https://expressjs.com)
-* [**express-session**](https://github.com/expressjs/session)
-* [**passport**](http://www.passportjs.org/)
-* [**graphql-codegen**](https://github.com/dotansimha/graphql-code-generator)
-* [**apollo-client**](https://www.apollographql.com/docs/react/)
+## roadmap
 
-check the `package.json` for more
+i'm aiming to achieve feature parity with [graphile/starter](https://github.com/graphile/starter) but there's still a lot to do, including:
+
+- [ ] basic UI elements
+- [ ] tests
+- [ ] deployment strategies
+
+check the issues if you're interested in helping!
 
 ## credits
 

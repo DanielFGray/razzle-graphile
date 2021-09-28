@@ -47,11 +47,11 @@ function UserProfile({ data }: { data: SharedQuery }) {
           })
         } catch (err) {
           switch (getCodeFromError(err)) {
-            case 'NUNIQ':
-              setErrors('This username is already in use, please pick a different name')
-              break
-            default:
-              setErrors(extractError(err))
+          case 'NUNIQ':
+            setErrors('This username is already in use, please pick a different name')
+            break
+          default:
+            setErrors(extractError(err))
           }
         }
       }}
@@ -103,14 +103,14 @@ function PasswordSettings({ data }: { data: SharedQuery }) {
           })
         } catch (err) {
           switch (getCodeFromError(err)) {
-            case 'WEAKP':
-              setErrors('Password is too weak or too common, please make it stronger')
-              break
-            case 'CREDS':
-              setErrors('Incorrect old passphrase')
-              break
-            default:
-              setErrors(extractError(err))
+          case 'WEAKP':
+            setErrors('Password is too weak or too common, please make it stronger')
+            break
+          case 'CREDS':
+            setErrors('Incorrect old passphrase')
+            break
+          default:
+            setErrors(extractError(err))
           }
         }
       }}

@@ -10,7 +10,7 @@ import * as nodemailer from 'nodemailer'
 
 import getTransport from '../transport'
 
-declare module global {
+declare namespace global {
   let TEST_EMAILS: any[]
 }
 

@@ -101,7 +101,9 @@ export function createApolloClient(): ApolloClient<unknown> {
     // cache: new InMemoryCache().restore(initialState || {}),
     cache: new InMemoryCache({
       dataIdFromObject: o =>
-        o.__typename === 'Query' ? 'ROOT_QUERY' : o.id ? `${o.__typename}:${o.id}` : null,
+        o.__typename === 'Query' ? 'ROOT_QUERY'
+        : o.id ? `${o.__typename}:${o.id}`
+        : null,
     }).restore(initialState || {}),
   })
 

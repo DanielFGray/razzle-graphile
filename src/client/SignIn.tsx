@@ -1,83 +1,74 @@
-import React, { useState } from 'react'
-import { Layout, Form } from 'components'
-import { extractError, getCodeFromError, resetWebsocketConnection, useSearchParams } from 'lib'
-import { useLoginMutation } from 'generated'
+import React from 'react'
 import { useHistory } from 'react-router-dom'
 import { useApolloClient } from '@apollo/client'
+import { Layout, Form, SocialLogin } from '@/components'
+import { useLoginMutation, useSharedQuery } from '@/generated'
+import {
+  extractError,
+  getCodeFromError,
+  resetWebsocketConnection,
+  useErrors,
+  useSearchParams,
+} from '@/lib'
 
 export default function SignIn(): JSX.Element {
-  const [error, _setError] = useState<null | string[]>(null)
-  const setError = (str: string | null) =>
-    _setError((s: null | string[]) => {
-      if (str == null) _setError(null)
-      return (s || []).concat(str)
-    })
+  const query = useSharedQuery()
+  const [errors, setErrors] = useErrors()
   const [login] = useLoginMutation()
   const client = useApolloClient()
   const history = useHistory()
   const { next = '/' } = useSearchParams()
   return (
-    <Layout forbidWhen={auth => auth.LOGGED_IN}>
-      {({ data }) => (
-        <Form
-          action="/graphql"
-          method="post"
-          onSubmit={async values => {
-            setError(null)
-            try {
-              await login({
-                variables: {
-                  username: values.username,
-                  password: values.password,
-                },
-              })
-              resetWebsocketConnection()
-              void client.resetStore()
-              history.push(next)
-            } catch (e) {
-              const errcode = getCodeFromError(e)
-              console.log({ errcode, e })
-              switch (errcode) {
-              case 'CREDS':
-                setError('Incorrect username or password')
-                break
-              default:
-                setError(e instanceof Error ? extractError(e).message : e)
-              }
+    <Layout query={query} forbidWhen={auth => auth.LOGGED_IN}>
+      <Form
+        action="/graphql"
+        method="post"
+        onSubmit={async values => {
+          setErrors(null)
+          try {
+            await login({
+              variables: {
+                username: values.username,
+                password: values.password,
+              },
+            })
+            resetWebsocketConnection()
+            void client.resetStore()
+            history.push(next)
+          } catch (err) {
+            switch (getCodeFromError(err)) {
+            case 'CREDS':
+              setErrors('Incorrect username or password')
+              break
+            default:
+              setErrors(extractError(err))
             }
-          }}
-        >
-          <fieldset>
-            <legend>sign in</legend>
-            <div>
-              <label>
-                {'username or email: '}
-                <input
-                  type="text"
-                  name="username"
-                  defaultValue={data?.currentUser?.username}
-                  placeholder="username [required]"
-                  required
-                />
-              </label>
-            </div>
-            <div>
-              <label>
-                {'password: '}
-                <input type="password" name="password" placeholder="password [required]" required />
-              </label>
-            </div>
-            {error && <div>{error}</div>}
-            <div>
-              <input type="submit" value="sign in" />
-            </div>
-          </fieldset>
-          or
+          }
+        }}
+      >
+        <fieldset>
+          <legend>sign in</legend>
+          <label>
+            <span>{'username: '}</span>
+            <input
+              type="text"
+              name="username"
+              defaultValue={query.data?.currentUser?.username}
+              placeholder="or email"
+              required
+            />
+          </label>
+          <label>
+            <span>{'password: '}</span>
+            <input type="password" name="password" placeholder="********" />
+          </label>
           <div>
-            <a href="/auth/github">sign in with github</a>
+            <input type="submit" value="sign in" />
           </div>
-        </Form>
-      )}
+          {errors && <div className="error">{errors}</div>}
+        </fieldset>
+        <SocialLogin label="sign in" />
+      </Form>
     </Layout>
   )
 }

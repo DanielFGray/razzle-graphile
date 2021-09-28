@@ -1,33 +1,30 @@
-import React, { useState } from 'react'
-import { Form, Layout } from 'components'
+import React from 'react'
+import { useHistory } from 'react-router-dom'
+import { useApolloClient } from '@apollo/client'
+import { SocialLogin, Loading, Form, Layout, Success, RenderErrors } from '@/components'
+import { useRegisterMutation, useSharedQuery } from '@/generated'
 import {
+  useErrors,
   extractError,
   getCodeFromError,
   getExceptionFromError,
   resetWebsocketConnection,
   useSearchParams,
-} from 'lib'
-import { useHistory } from 'react-router-dom'
-import { useApolloClient } from '@apollo/client'
-import { useRegisterMutation } from 'generated'
+} from '@/lib'
 
 export default function SignUp(): JSX.Element {
-  const [error, _setError] = useState<null | string[]>(null)
-  const setError = (str: string | null) =>
-    _setError((s: null | string[]) => {
-      if (str == null) _setError(null)
-      return (s || []).concat(str)
-    })
+  const query = useSharedQuery()
+  const [errors, setErrors] = useErrors()
   const client = useApolloClient()
   const history = useHistory()
-  const { next } = useSearchParams()
-  const [register] = useRegisterMutation()
+  const { next = '/' } = useSearchParams()
+  const [register, registerMutation] = useRegisterMutation()
   return (
-    <Layout>
-      <Form
+    <Layout query={query} forbidWhen={auth => auth.LOGGED_IN}>
+      <Form<'username' | 'email' | 'password' | 'name'>
         onSubmit={async values => {
           try {
-            setError(null)
+            setErrors(null)
             await register({
               variables: {
                 username: values.username,
@@ -38,30 +35,30 @@ export default function SignUp(): JSX.Element {
             })
             // Success: refetch
             resetWebsocketConnection()
-            void client.resetStore()
+            await client.resetStore()
             history.push(next)
           } catch (err) {
             switch (getCodeFromError(err)) {
             case 'WEAKP':
-              setError('Password is too weak or too common, please make it stronger')
+              setErrors('Password is too weak or too common, please make it stronger')
               break
             case 'EMTKN':
-              setError(
+              setErrors(
                 "An account with this email address has already been registered, consider using the 'Forgot passphrase' function.",
               )
               break
             case 'NUNIQ':
-              setError(
+              setErrors(
                 'An account with this username has already been registered, please try a different username.',
               )
               break
             case '23514':
-              setError(
+              setErrors(
                 'This username is not allowed; usernames must be between 2 and 24 characters long (inclusive), must start with a letter, and must contain only alphanumeric characters and underscores.',
               )
               break
             default:
-              setError(err.message || err)
+              setErrors(err)
             }
           }
         }}
@@ -70,34 +67,36 @@ export default function SignUp(): JSX.Element {
           <legend>sign up</legend>
           <div>
             <label>
-              email: <input type="email" name="email" required />
+              <span>{'email*: '}</span>
+              <input type="email" name="email" />
             </label>
           </div>
+          <label>
+            <span>username*: </span>
+            <input
+              type="username"
+              name="username"
+              autoCapitalize="false"
+              autoComplete="false"
+              required
+            />
+          </label>
+          <label>
+            <span>{'password*: '}</span>
+            <input type="password" name="password" required />
+          </label>
+          <label>
+            <span>{'your name: '}</span>
+            <input type="username" name="name" />
+          </label>
           <div>
-            <label>
-              username: <input type="username" name="username" required />
-            </label>
+            <input type="submit" value="register" />
+            {registerMutation.loading && <Loading />}
+            {registerMutation.data && <Success />}
           </div>
-          <div>
-            <label>
-              password: <input type="password" name="password" required />
-            </label>
-          </div>
-          <div>
-            <label>
-              your name: <input type="username" name="name" />
-            </label>
-          </div>{error && <div>{error}</div>}
-          <div>
-            <label>
-              <input type="submit" value="register" />
-            </label>
-          </div>
+          <RenderErrors errors={errors} />
         </fieldset>
-        or
-        <div>
-          <a href="/auth/github">sign up with github</a>
-        </div>
+        <SocialLogin label="sign up" />
       </Form>
     </Layout>
   )

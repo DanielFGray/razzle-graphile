@@ -3,6 +3,10 @@ import { Route, Switch } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import Home from './Home'
 import './App.css'
+import Settings from './Settings'
+import SignUp from './SignUp'
+import SignIn from './SignIn'
+import NotFound from './NotFound'
 
 const appTitle = 'nodeapp'
 
@@ -19,7 +23,11 @@ export default function App() {
         <meta name="viewport" content="width=device-width,initial-scale=1" />
       </Helmet>
       <Switch>
-        <Route path="/" component={Home} />
+        <Route path="/settings" component={Settings} />
+        <Route path="/signup" component={SignUp} />
+        <Route path="/signin" component={SignIn} />
+        <Route exact path="/" component={Home} />
+        <Route render={NotFound} />
       </Switch>
     </>
   )

@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
 import { ApolloProvider } from '@apollo/client/react'
 import { createApolloClient } from 'lib/withApollo'
+import './App.css'
 import App from './App'
 
 hydrate(

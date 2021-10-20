@@ -1,37 +1,33 @@
-import { Task } from 'graphile-worker'
-
-import { SendEmailPayload } from './send_email'
+/** @typedef { import("./send_email").SendEmailPayload } SendEmailPayload */
+/** @typedef { import("graphile-worker").Task } Task */
 
 // At least 3 minutes between resending email verifications
 const MIN_INTERVAL = 1000 * 60 * 3
 
-interface UserEmailsSendVerificationPayload {
-  id: string
-}
+/** @typedef {{
+  id: string;
+}} UserEmailsSendVerificationPayload */
 
-const task: Task = async (inPayload, { addJob, withPgClient }) => {
-  const payload: UserEmailsSendVerificationPayload = inPayload as any
+/** @type {Task} */
+module.exports = async (inPayload, { addJob, withPgClient }) => {
+  /** @type {UserEmailsSendVerificationPayload} */
+  const payload = inPayload
   const { id: userEmailId } = payload
   const {
     rows: [userEmail],
   } = await withPgClient(pgClient =>
-    pgClient.query(`
-        select
-          user_emails.id,
-          email,
-          verification_token,
-          username,
-          name,
-          extract(epoch from now()) - extract(epoch from verification_email_sent_at) as seconds_since_verification_sent
+    pgClient.query(
+      `
+        select user_emails.id, email, verification_token, username, name, extract(epoch from now()) - extract(epoch from verification_email_sent_at) as seconds_since_verification_sent
         from app_public.user_emails
         inner join app_private.user_email_secrets
-          on user_email_secrets.user_email_id = user_emails.id
+        on user_email_secrets.user_email_id = user_emails.id
         inner join app_public.users
-          on users.id = user_emails.user_id
+        on users.id = user_emails.user_id
         where user_emails.id = $1
-          and user_emails.is_verified is false
+        and user_emails.is_verified is false
       `,
-    [userEmailId],
+      [userEmailId],
     ),
   )
   if (! userEmail) {
@@ -49,7 +45,9 @@ const task: Task = async (inPayload, { addJob, withPgClient }) => {
     console.log('Email sent too recently')
     return
   }
-  const sendEmailPayload: SendEmailPayload = {
+
+  /** @type {SendEmailPayload} */
+  const sendEmailPayload = {
     options: {
       to: email,
       subject: 'Please verify your email address',
@@ -57,7 +55,7 @@ const task: Task = async (inPayload, { addJob, withPgClient }) => {
     template: 'verify_email.mjml',
     variables: {
       token: verification_token,
-      verifyLink: `${process.env.ROOT_URL}/verify?id=${encodeURIComponent(
+      verifyLink: `${process.env.RAZZLE_ROOT_URL}/verify?id=${encodeURIComponent(
         String(userEmailId),
       )}&token=${encodeURIComponent(verification_token)}`,
       username,
@@ -72,5 +70,3 @@ const task: Task = async (inPayload, { addJob, withPgClient }) => {
     ),
   )
 }
-
-export default task

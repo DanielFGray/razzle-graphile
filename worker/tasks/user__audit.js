@@ -1,80 +1,64 @@
-import { projectName } from '@app/config'
-import type { Task } from 'graphile-worker'
+/** @typedef { import("./send_email").SendEmailPayload } SendEmailPayload */
+/** @typedef { import("graphile-worker").Task } Task */
 
-import { SendEmailPayload } from './send_email'
+const projectName = require('../../package.json').name.replace(/[-_]/g, " ")
 
 /* For tracking account actions */
 
-/*
-type AccountAction =
-  | "linked_account" //
-  | "unlinked_account" //
-  | "changed_password" //
-  | "reset_password" //
-  | "added_email" //
-  | "removed_email"; //
- */
-
-type UserAuditPayload =
-  | {
+/** @typedef {
+    | 'linked_account'
+    | 'unlinked_account'
+    | 'changed_password'
+    | 'reset_password'
+    | 'added_email'
+    | 'removed_email'
+  } AccountAction
+ * @typedef {{
       type: 'added_email'
       user_id: string
       current_user_id: string
-
-      /** id */
       extra1: string
-
-      /** email */
       extra2: string
-    }
-  | {
+    } | {
       type: 'removed_email'
       user_id: string
       current_user_id: string
-
-      /** id */
       extra1: string
-
-      /** email */
       extra2: string
     }
-  | {
+    | {
       type: 'linked_account'
       user_id: string
       current_user_id: string
-
-      /** service */
       extra1: string
-
-      /** identifier */
       extra2: string
     }
-  | {
+    | {
       type: 'unlinked_account'
       user_id: string
       current_user_id: string
-
-      /** service */
       extra1: string
-
-      /** identifier */
       extra2: string
     }
-  | {
+    | {
       type: 'reset_password'
       user_id: string
       current_user_id: string
     }
-  | {
+    | {
       type: 'change_password'
       user_id: string
       current_user_id: string
-    }
+    }} UserAuditPayload */
 
-const task: Task = async (rawPayload, { addJob, withPgClient, job }) => {
-  const payload: UserAuditPayload = rawPayload as any
-  let subject: string
-  let actionDescription: string
+/** @type {Task} */
+module.exports = async (rawPayload, { addJob, withPgClient, job }) => {
+  /** @type {UserAuditPayload} */
+  const payload = rawPayload
+  /** @type string */
+  let subject
+  /** @type string */
+  let actionDescription
   switch (payload.type) {
   case 'added_email': {
     subject = `You added an email to your account`
@@ -109,7 +93,7 @@ const task: Task = async (rawPayload, { addJob, withPgClient, job }) => {
   default: {
     // Ensure we've handled all cases above
     const neverPayload = payload
-    console.error(`Audit action '${neverPayload.type as string}' not understood; ignoring.`)
+    console.error(`Audit action '${neverPayload.type}' not understood; ignoring.`)
     return
   }
   }
@@ -117,10 +101,7 @@ const task: Task = async (rawPayload, { addJob, withPgClient, job }) => {
   const {
     rows: [user],
   } = await withPgClient(client =>
-    client.query<{
-      id: string
-      created_at: Date
-    }>('select * from app_public.users where id = $1', [payload.user_id]),
+    client.query('select * from app_public.users where id = $1', [payload.user_id]),
   )
 
   if (! user) {
@@ -129,28 +110,26 @@ const task: Task = async (rawPayload, { addJob, withPgClient, job }) => {
     )
     return
   }
-  if (Math.abs(+user.created_at - +job.created_at) < 2) {
+  if (Math.abs(Number(user.created_at) - Number(job.created_at)) < 2) {
     console.info(
       `Not sending audit announcement for user '${payload.user_id}' because it occurred immediately after account creation. (Tried to audit: ${actionDescription})`,
     )
     return
   }
+  /** @typedef {{
+    id: string
+    user_id: string
+    email: string
+    is_verified: boolean
+    is_primary: boolean
+    created_at: Date
+    updated_at: Date
+  }[]} userEmails
+   * @type {{ rows: userEmails }}
+   */
   const { rows: userEmails } = await withPgClient(client =>
-    client.query<{
-      id: string
-      user_id: string
-      email: string
-      is_verified: boolean
-      is_primary: boolean
-      created_at: Date
-      updated_at: Date
-    }>(
-      `
-        select *
-          from app_public.user_emails
-        where user_id = $1
-          and is_verified is true
-        order by id asc`,
+    client.query(
+      'select * from app_public.user_emails where user_id = $1 and is_verified is true order by id asc',
       [payload.user_id],
     ),
   )
@@ -161,7 +140,8 @@ const task: Task = async (rawPayload, { addJob, withPgClient, job }) => {
 
   const emails = userEmails.map(e => e.email)
 
-  const sendEmailPayload: SendEmailPayload = {
+  /** @type {SendEmailPayload} */
+  const sendEmailPayload = {
     options: {
       to: emails,
       subject: `[${projectName}] ${subject}`,
@@ -173,5 +153,3 @@ const task: Task = async (rawPayload, { addJob, withPgClient, job }) => {
   }
   await addJob('send_email', sendEmailPayload)
 }
-
-export default task

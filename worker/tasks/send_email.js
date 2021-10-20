@@ -1,38 +1,41 @@
-import { Task } from 'graphile-worker'
-import { template as lodashTemplate } from 'lodash'
-// @ts-ignore
-import mjml2html = require('mjml')
-import { emailLegalText as legalText, fromEmail, projectName } from '@app/config'
-import chalk from 'chalk'
-import fs from 'fs/promises'
-import { htmlToText } from 'html-to-text'
-import * as nodemailer from 'nodemailer'
+/* eslint-disable @typescript-eslint/no-var-requires */
+/** @typedef { import("graphile-worker").Task } Task */
+const { template: lodashTemplate } = require('lodash')
+const mjml2html = require('mjml')
+const chalk = require('chalk')
+const fs = require('node:fs/promises')
+const { htmlToText } = require('html-to-text')
+const nodemailer = require('nodemailer')
+const getTransport = require('../transport')
 
-import getTransport from '../transport'
-
-declare namespace global {
-  let TEST_EMAILS: any[]
-}
+const packageJson = require('../../package.json') // TODO: get rid of all this
+const projectName = packageJson.name.replace(/[-_]/g, " ")
+const fromEmail = packageJson.author.email
+const legalText = process.env.LEGAL_TEXT // FIXME
 
 global.TEST_EMAILS = []
+
+const { readFile } = fs
 
 const isTest = process.env.NODE_ENV === 'test'
 const isDev = process.env.NODE_ENV !== 'production'
 
-export interface SendEmailPayload {
+/** @typedef {{
   options: {
-    from?: string
-    to: string | string[]
-    subject: string
-  }
-  template: string
+    from?: string;
+    to: string | string[];
+    subject: string;
+  };
+  template: string;
   variables: {
-    [varName: string]: any
-  }
-}
+    [varName: string]: any;
+  };
+}} SendEmailPayload */
 
-const task: Task = async inPayload => {
-  const payload: SendEmailPayload = inPayload as any
+/** @type {Task} */
+module.exports = async inPayload => {
+  /** @type {SendEmailPayload} */
+  const payload = inPayload
   const transport = await getTransport()
   const { options: inOptions, template, variables } = payload
   const options = {
@@ -59,20 +62,18 @@ const task: Task = async inPayload => {
   }
 }
 
-export default task
-
 const templatePromises = {}
-function loadTemplate(template: string) {
+function loadTemplate(template) {
   if (isDev || ! templatePromises[template]) {
     templatePromises[template] = (async () => {
-      if (! (/^[a-zA-Z0-9_.-]+$/.exec(template))) {
+      if (! template.match(/^[a-zA-Z0-9_.-]+$/)) {
         throw new Error(`Disallowed template name '${template}'`)
       }
-      const templateString = await fs.readFile(`${__dirname}/../../templates/${template}`, 'utf8')
+      const templateString = await readFile(`${__dirname}/../templates/${template}`, 'utf8')
       const templateFn = lodashTemplate(templateString, {
         escape: /\[\[([\s\S]+?)\]\]/g,
       })
-      return (variables: { [varName: string]: any }) => {
+      return variables => {
         const mjml = templateFn({
           projectName,
           legalText,

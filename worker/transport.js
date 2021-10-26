@@ -1,5 +1,5 @@
 // const { awsRegion } = require('@app/config')
-// const * as aws = require('aws-sdk')
+// const aws = require('aws-sdk')
 const fs = require('fs/promises')
 const chalk = require('chalk')
 const nodemailer = require('nodemailer')

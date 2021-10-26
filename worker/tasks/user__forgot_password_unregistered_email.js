@@ -1,4 +1,4 @@
-const projectName = require('../../package.json').name.replace(/[-_]/g, " ")
+const { projectName } = require('../../src/config')
 
 /** @typedef { import("./send_email").SendEmailPayload } SendEmailPayload */
 /** @typedef { import("graphile-worker").Task } Task */

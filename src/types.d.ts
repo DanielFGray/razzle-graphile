@@ -1,21 +1,17 @@
-import type { PoolClient } from 'pg'
-
-export type Maybe<T> = null | T
-
-declare module '*.svg' {
+module '*.svg' {
   const src: string
   export default src
-}
-
-export interface OurGraphQLContext {
-  pgClient: PoolClient
-  sessionId: string | null
-  login(user: any): Promise<void>
-  logout(): Promise<void>
 }
 
 declare module 'express-session' {
   interface SessionData {
     returnTo?: string
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-namespace
+namespace Express {
+  interface User {
+    session_id: string
   }
 }

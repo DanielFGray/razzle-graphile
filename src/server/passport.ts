@@ -5,33 +5,9 @@ import { Strategy as GitHubStrategy } from 'passport-github2'
 // import { Strategy as TwitterStrategy } from 'passport-twitter'
 // import { Strategy as RedditStrategy } from 'passport-reddit'
 import { ERROR_MESSAGE_OVERRIDES } from '@/lib'
+import { OurGraphQLContext, DbSession, UserSpec, GetUserInformationFunction } from '@/types'
 
 import { rootPgPool } from './dbPools'
-
-interface DbSession {
-  uuid: string
-  user_id: string
-  created_at: Date
-  last_active: Date
-}
-
-export interface UserSpec {
-  id: string
-  displayName: string
-  username: string
-  avatarUrl?: string
-  email: string
-  profile?: any
-  auth?: any
-}
-
-export type GetUserInformationFunction = (info: {
-  profile: any
-  accessToken: string
-  refreshToken: string
-  extra: any
-  req: Request
-}) => UserSpec
 
 /*
  * Add returnTo property using [declaration merging](https://www.typescriptlang.org/docs/handbook/declaration-merging.html).
@@ -142,6 +118,14 @@ export function installPassport(app: Express): void {
   // }
 }
 
+type GetUserInformationFunction = (info: {
+  profile: any
+  accessToken: string
+  refreshToken: string
+  extra: any
+  req: Request
+}) => UserSpec
+
 export function installPassportStrategy({
   app,
   service,
@@ -157,13 +141,7 @@ export function installPassportStrategy({
   strategy: new (...args: any) => passport.Strategy
   strategyConfig: any
   authenticateConfig?: any
-  getUserInformation: (info: {
-    profile: any
-    accessToken: string
-    refreshToken: string
-    extra: any
-    req: Request
-  }) => UserSpec
+  getUserInformation: GetUserInformationFunction
   tokenNames: string[]
   hooks?: {
     preRequest?: undefined | ((req: Express.Request) => void)
@@ -267,7 +245,7 @@ export function installPassportStrategy({
   })
 
   const step2Middleware = passport.authenticate(service, {
-    failureRedirect: '/login',
+    failureRedirect: '/signup',
     successReturnToOrRedirect: '/',
   })
 
@@ -280,10 +258,6 @@ export function installPassportStrategy({
     }
     step2Middleware(req, res, next)
   })
-}
-
-interface DbSession {
-  session_id: string
 }
 
 declare global {
@@ -518,7 +492,7 @@ export const PassportLoginPlugin = makeExtendSchemaPlugin(build => ({
         }
       },
 
-      async resetPassword(_mutation, args, context: OurGraphQLContext, _resolveInfo) {
+      async resetPassword(_mutation, args, _context: OurGraphQLContext, _resolveInfo) {
         const { userId, resetToken, newPassword, clientMutationId } = args.input
 
         // Since the `reset_password` function needs to keep track of attempts

@@ -2,10 +2,12 @@ import React from 'react'
 import { Route, Switch } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import Home from './Home'
-import Settings from './Settings'
+import { SplitSettingsPage as Settings } from './Settings'
 import SignUp from './SignUp'
 import SignIn from './SignIn'
 import NotFound from './NotFound'
+import Verify from './Verify'
+import ForgotPassword from './ForgotPassword'
 
 const appTitle = 'nodeapp'
 
@@ -25,8 +27,10 @@ export default function App() {
         <Route path="/settings" component={Settings} />
         <Route path="/signup" component={SignUp} />
         <Route path="/signin" component={SignIn} />
+        <Route path="/verify" component={Verify} />
+        <Route path="/forgot" component={ForgotPassword} />
         <Route exact path="/" component={Home} />
-        <Route render={NotFound} />
+        <Route component={NotFound} />
       </Switch>
     </>
   )

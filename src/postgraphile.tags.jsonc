@@ -1,5 +1,5 @@
-/* This should be JSON5, but we chose JSONC for VSCode compatibility. */
-/*
+/* This should be JSON5, but we chose JSONC for VSCode compatibility.
+ *
  * This file contains your Smart Tags, allowing you to "tag" database entities
  * in order to customise how your GraphQL schema is generated. If you prefer,
  * you can use Smart Comments in the database, or you can use both.
@@ -15,8 +15,7 @@
       // COMMENT ON TABLE app_public.users IS E'@omit all\nA user who can log in to the application.';
       "app_public.users": {
         "tags": {
-          /*
-           * By doing `@omit all` we prevent the `allUsers` field from appearing in
+          /* By doing `@omit all` we prevent the `allUsers` field from appearing in
            * our GraphQL schema. User discovery is still possible by browsing the
            * rest of the data, but it makes it harder for people to receive a
            * `totalCount` of users, or enumerate them fully. Of course if you
@@ -30,8 +29,7 @@
       },
       "app_public.user_emails": {
         "tags": {
-          /*
-           * `@omit all` because there's no point exposing `allUserEmails` -
+          /* `@omit all` because there's no point exposing `allUserEmails` -
            * you can only see your own, and having this behaviour can lead to
            * bad practices from frontend teams.
            */

@@ -15,7 +15,7 @@ const generatePassword = (length, type = 'base64') =>
 
 async function main() {
   try {
-    const stat = await fs.stat('.env')
+    await fs.stat('.env')
     process.exit(0)
   } catch(e) {}
 

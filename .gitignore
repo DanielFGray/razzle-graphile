@@ -4,3 +4,4 @@ cache
 src/generated/*
 .env
 .eslintcache
+.ethereal

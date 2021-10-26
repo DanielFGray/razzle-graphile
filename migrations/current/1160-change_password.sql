@@ -4,7 +4,7 @@
  * the user type it twice, but that isn't necessary in the API.
  */
 
-create function app_public.change_password(old_password text, new_password text) returns boolean as $$
+create function app_public.change_password(new_password text, old_password text default null) returns boolean as $$
 declare
   v_user app_public.users;
   v_user_secret app_private.user_secrets;
@@ -21,7 +21,7 @@ begin
   select * into v_user_secret from app_private.user_secrets
   where user_secrets.user_id = v_user.id;
 
-  if v_user_secret.password_hash != crypt(old_password, v_user_secret.password_hash) then
+  if v_user_secret.password_hash != null and v_user_secret.password_hash != crypt(old_password, v_user_secret.password_hash) then
     raise exception 'Incorrect password' using errcode = 'CREDS';
   end if;
 
@@ -32,6 +32,13 @@ begin
   set
     password_hash = crypt(new_password, gen_salt('bf'))
   where user_secrets.user_id = v_user.id;
+
+  -- Revoke all other sessions
+  delete from app_private.sessions
+  where sessions.user_id = v_user.id
+  and sessions.uuid <> app_public.current_session_id();
+
+  -- Notify user their password was changed=================
   perform graphile_worker.add_job(
     'user__audit',
     json_build_object(

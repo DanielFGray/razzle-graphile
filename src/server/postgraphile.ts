@@ -1,9 +1,9 @@
 import path from 'path'
+import type { Middleware, PostGraphileOptions } from 'postgraphile'
 import { makePluginHook, postgraphile } from 'postgraphile'
 import PgPubsub from '@graphile/pg-pubsub'
 import PgSimplifyInflectorPlugin from '@graphile-contrib/pg-simplify-inflector'
 import { makePgSmartTagsFromFilePlugin } from 'postgraphile/plugins'
-import { makeAddPgTableOrderByPlugin, orderByAscDesc } from 'graphile-utils'
 import { NodePlugin, Plugin } from 'graphile-build'
 import { Express } from 'express'
 import { PassportLoginPlugin } from './passport'
@@ -11,10 +11,12 @@ import SubscriptionsPlugin from './graphile-subscriptions'
 import { rootPgPool, authPgPool } from './dbPools'
 import { handleErrors } from '@/lib'
 import { RemoveForeignKeyFieldsPlugin } from 'postgraphile-remove-foreign-key-fields-plugin'
-import { makeWorkerUtils, WorkerUtils } from 'graphile-worker'
+import ConnectionFilterPlugin from 'postgraphile-plugin-connection-filter'
+import FulltextFilterPlugin from '@pyramation/postgraphile-plugin-fulltext-filter'
+import { OurGraphQLContext } from '@/types'
 
 const isDev = process.env.NODE_ENV !== 'production'
-
+console.log({ isDev })
 type postgraphile = ReturnType<typeof postgraphile>
 type PgConstraint = any
 type UUID = string
@@ -39,16 +41,15 @@ const PrimaryKeyMutationsOnlyPlugin: Plugin = builder => {
 function uuidOrNull(input: string | number | null | undefined): UUID | null {
   if (!input) return null
   const str = String(input)
-  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str)) {
-    return str
-  }
-  return null
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str)
+    ? str
+    : null
 }
 
 const RemoveQueryQueryPlugin: Plugin = builder => {
-  builder.hook('GraphQLObjectType:fields', (fields, build, context) => {
+  builder.hook('GraphQLObjectType:fields', (fields, _build, context) => {
     if (context.scope.isRootQuery) {
-      const { query, ...rest } = fields
+      const { query: _query, ...rest } = fields
       /* Drop the `query` field */
       return rest
     }
@@ -61,19 +62,34 @@ const RemoveQueryQueryPlugin: Plugin = builder => {
 const TagsFilePlugin = makePgSmartTagsFromFilePlugin(path.resolve('./src/postgraphile.tags.jsonc'))
 
 let middleware: postgraphile
-export let worker: Promise<WorkerUtils>
 export function getPostgraphileMiddleware(): postgraphile {
   if (middleware) return middleware
   throw new Error('middleware not defined yet!')
 }
 
-export function createPostgraphileMiddleware(app: Express): postgraphile {
-  if (middleware) return middleware
-  void makeWorkerUtils({ pgPool: rootPgPool })
-  middleware = postgraphile(authPgPool, ['app_public'], {
+export function installPostgraphileMiddleware(app: Express): void {
+  if (app.get('subscriptions')) console.log('enabling pg pubsub')
+  middleware = postgraphile(
+    authPgPool,
+    ['app_public'],
+    getOptions({ subscriptions: app.locals.websocketMiddlewares }),
+  )
+  app.use(middleware)
+  app.locals.shutdownHooks.push(async () => {
+    console.log('stopping postgraphile')
+    await middleware.release()
+  })
+}
+
+export function getOptions({
+  subscriptions,
+}: {
+  subscriptions?: Array<Middleware>
+}): PostGraphileOptions {
+  return {
     /* This is for PostGraphile server plugins: https://www.graphile.org/postgraphile/plugins/ */
     /* Add the pub/sub realtime provider */
-    pluginHook: app.get('subscriptions') ? makePluginHook([PgPubsub]) : undefined,
+    pluginHook: subscriptions ? makePluginHook([PgPubsub]) : undefined,
     /* This is so that PostGraphile installs the watch fixtures, it's also needed to enable live queries */
     ownerConnectionString: process.env.ROOT_DATABASE_URL,
 
@@ -84,8 +100,8 @@ export function createPostgraphileMiddleware(app: Express): postgraphile {
     retryOnInitFail: true,
 
     /* Add websocket support to the PostGraphile server; you still need to use a subscriptions plugin such as @graphile/pg-pubsub */
-    subscriptions: app.get('subscriptions'),
-    websocketMiddlewares: app.get('subscriptions') && app.locals.websocketMiddlewares,
+    subscriptions: Boolean(subscriptions),
+    websocketMiddlewares: subscriptions,
     /* enableQueryBatching: On the client side, use something like apollo-link-batch-http to make use of this */
     enableQueryBatching: true,
 
@@ -122,26 +138,26 @@ export function createPostgraphileMiddleware(app: Express): postgraphile {
      * output to the user.
      * See https://www.graphile.org/postgraphile/debugging/
 
-    extendedErrors:
-      isDev || isTest
-        ? [
-          'errcode',
-          'severity',
-          'detail',
-          'hint',
-          'positon',
-          'internalPosition',
-          'internalQuery',
-          'where',
-          'schema',
-          'table',
-          'column',
-          'dataType',
-          'constraint',
-        ]
-        : ['errcode'],
+     extendedErrors:
+     isDev || isTest
+       ? [
+       'errcode',
+       'severity',
+       'detail',
+       'hint',
+       'positon',
+       'internalPosition',
+       'internalQuery',
+       'where',
+       'schema',
+       'table',
+       'column',
+       'dataType',
+       'constraint',
+       ]
+         : ['errcode'],
+    showErrorStack: isDev,
      */
-    // showErrorStack: isDev || isTest,
 
     /* Automatically update GraphQL schema when database changes */
     watchPg: isDev,
@@ -173,6 +189,8 @@ export function createPostgraphileMiddleware(app: Express): postgraphile {
       PassportLoginPlugin,
       /* Adds realtime features to our GraphQL schema */
       SubscriptionsPlugin,
+      ConnectionFilterPlugin,
+      FulltextFilterPlugin,
     ],
 
     /*
@@ -190,6 +208,12 @@ export function createPostgraphileMiddleware(app: Express): postgraphile {
        */
       /* Makes all SQL function arguments except those with defaults non-nullable */
       pgStrictFunctions: true,
+      /* pick which filters are used for ConnectionFilterPlugin */
+      /* rename some filter names */
+      connectionFilterOperatorNames: {
+        equalTo: 'is',
+        notEqualTo: 'not',
+      },
     },
 
     /*
@@ -234,23 +258,20 @@ export function createPostgraphileMiddleware(app: Express): postgraphile {
      * resolvers). This is useful if you write your own plugins that need
      * access to, e.g., the logged in user.
      */
-    additionalGraphQLContextFromRequest(req): Partial<OurGraphQLContext> {
-      return {
-        /* The current session id */
-        sessionId: uuidOrNull(req.user?.session_id),
+    additionalGraphQLContextFromRequest: async (req): Promise<Partial<OurGraphQLContext>> => ({
+      /* The current session id */
+      sessionId: uuidOrNull(req.user?.session_id),
 
-        /* Use this to tell Passport.js we're logged in */
-        async login(user: any) {
-          return new Promise((resolve, reject) => {
-            req.login(user, err => (err ? reject(err) : resolve()))
-          })
-        },
+      /* Use this to tell Passport.js we're logged in */
+      async login(user: any) {
+        return new Promise((resolve, reject) => {
+          req.login(user, err => (err ? reject(err) : resolve()))
+        })
+      },
 
-        async logout() {
-          req.logout()
-        },
-      }
-    },
-  })
-  app.use(middleware)
+      async logout() {
+        req.logout()
+      },
+    }),
+  }
 }

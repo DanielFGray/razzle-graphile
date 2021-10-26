@@ -15,6 +15,7 @@ class WebSocketLink extends ApolloLink {
         sink.error(new Error('No websocket connection'))
         return
       }
+      console.log({ 'ws query': operation.query })
       return wsClient.subscribe<FetchResult>(
         { ...operation, query: print(operation.query) },
         {

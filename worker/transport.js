@@ -1,20 +1,20 @@
-// import { awsRegion } from '@app/config'
-// import * as aws from 'aws-sdk'
-import chalk from 'chalk'
-import { promises as fsp } from 'fs'
-import * as nodemailer from 'nodemailer'
+// const { awsRegion } = require('@app/config')
+// const * as aws = require('aws-sdk')
+const fs = require('fs/promises')
+const chalk = require('chalk')
+const nodemailer = require('nodemailer')
 
-const { readFile, writeFile } = fsp
+const { readFile, writeFile } = fs
 
 const isTest = process.env.NODE_ENV === 'test'
 const isDev = process.env.NODE_ENV !== 'production'
 
-let transporterPromise: Promise<nodemailer.Transporter>
+let transporterPromise
 const etherealFilename = `${process.cwd()}/.ethereal`
 
 let logged = false
 
-export default function getTransport(): Promise<nodemailer.Transporter> {
+module.exports = function getTransport() {
   if (! transporterPromise) {
     transporterPromise = (async () => {
       if (isTest) return nodemailer.createTransport({ jsonTransport: true })

@@ -73,6 +73,14 @@ begin
     failed_reset_password_attempts = 0,
     first_failed_reset_password_attempt = null
   where user_secrets.user_id = v_user.id;
+
+  -- Revoke the users' sessions
+  delete from app_private.sessions
+  where sessions.user_id = v_user.id;
+
+  perform app_private.login(v_user.username, new_password);
+
+  -- Notify user their password was reset
   perform graphile_worker.add_job(
     'user__audit',
     json_build_object(

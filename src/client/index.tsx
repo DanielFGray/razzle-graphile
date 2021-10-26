@@ -7,16 +7,19 @@ import { createApolloClient } from '@/lib'
 import './App.css'
 import App from './App'
 
-hydrate(
-  <ApolloProvider client={createApolloClient()}>
-    <HelmetProvider>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </HelmetProvider>
-  </ApolloProvider>,
-  document.getElementById('root'),
-)
+function Init() {
+  return (
+    <ApolloProvider client={createApolloClient()}>
+      <HelmetProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </HelmetProvider>
+    </ApolloProvider>
+  )
+}
+
+hydrate(<Init />, document.getElementById('root'))
 
 if (module.hot) {
   module.hot.accept()

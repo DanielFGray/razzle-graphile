@@ -6,9 +6,11 @@ import { ApolloProvider, ApolloClient, ApolloLink, InMemoryCache } from '@apollo
 import { renderToStringWithData } from '@apollo/client/react/ssr'
 import { onError } from '@apollo/client/link/error'
 import { GraphileApolloLink as GraphileLink } from '@/lib'
-import Layout from '@/client/App'
+import App from '@/client/App'
 import { getPostgraphileMiddleware } from './postgraphile'
 import { renderHtml } from './html'
+
+const isDev = process.env.NODE_ENV === 'development'
 
 export async function render(
   req: Express.Request,
@@ -41,17 +43,17 @@ export async function render(
   const routerCtx: StaticRouterContext = {}
   const helmetCtx = {}
 
-  const App = (
+  const Init = (
     <ApolloProvider client={apolloClient}>
       <StaticRouter location={req.url} context={routerCtx}>
         <HelmetProvider context={helmetCtx}>
-          <Layout />
+          <App />
         </HelmetProvider>
       </StaticRouter>
     </ApolloProvider>
   )
 
-  const markup = await renderToStringWithData(App)
+  const markup = await renderToStringWithData(Init)
 
   if (routerCtx.statusCode) status = routerCtx.statusCode
   if (routerCtx.url) {
@@ -64,18 +66,19 @@ export async function render(
 
   const { helmet } = helmetCtx as FilledContext
   const data = apolloClient.extract()
-  Object.assign(data, { CSRF_TOKEN: req.csrfToken() })
+  if (! isDev) { Object.assign(data, { CSRF_TOKEN: req.csrfToken() }) }
 
   const html = renderHtml({ helmet, markup, data })
 
   return { type: 'payload', status, html }
 }
 
-export async function SSR(req: Express.Request, res: Express.Response): Promise<void> {
-  const renderResult = await render(req, res)
-  res.status(renderResult.status)
-  if (renderResult.type === 'redirect') {
-    return res.redirect(renderResult.redirect)
-  }
-  res.send(renderResult.html)
+export const SSR: Express.RequestHandler = (req, res) => {
+  render(req, res).then(result => {
+    res.status(result.status)
+    if (result.type === 'redirect') {
+      return res.redirect(result.redirect)
+    }
+    res.send(result.html)
+  })
 }

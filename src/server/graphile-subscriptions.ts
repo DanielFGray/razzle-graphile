@@ -7,6 +7,7 @@ import {
 } from 'graphile-utils'
 // graphile-utils doesn't export this yet
 import { GraphQLResolveInfo } from 'graphql'
+import { OurGraphQLContext } from '@/types'
 
 type GraphileHelpers = any
 type AugmentedGraphQLFieldResolver<TSource, TContext, TArgs = { [argName: string]: any }> = (

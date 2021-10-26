@@ -1,16 +1,41 @@
-import React from 'react'
+import React, { useReducer, useEffect } from 'react'
 import { useHistory } from 'react-router-dom'
 import { useApolloClient } from '@apollo/client'
 import { SocialLogin, Loading, Form, Layout, Success, RenderErrors } from '@/components'
 import { useRegisterMutation, useSharedQuery } from '@/generated'
+import zxcvbn from 'zxcvbn'
 import {
-  useErrors,
   extractError,
   getCodeFromError,
-  getExceptionFromError,
   resetWebsocketConnection,
+  useErrors,
   useSearchParams,
 } from '@/lib'
+
+const initState = { password: '', passwordStrength: 0, passwordSuggestions: [''] }
+type ActionTypes = { type: 'PASSWORD_CHANGED'; payload: string }
+
+function passwordReducer(state: typeof initState, action: ActionTypes): typeof initState {
+  switch (action.type) {
+  case 'PASSWORD_CHANGED': {
+    const { score, feedback } = zxcvbn(action.payload)
+    return {
+      ...state,
+      password: action.payload,
+      passwordStrength: score,
+      passwordSuggestions: (feedback.warning ? [feedback.warning] : []).concat(feedback.suggestions),
+    }
+  }
+  }
+}
+
+const strength = {
+  0: 'Worst ☹',
+  1: 'Bad ☹',
+  2: 'Weak ☹',
+  3: 'Good ☺',
+  4: 'Strong ☻',
+}
 
 export default function SignUp(): JSX.Element {
   const query = useSharedQuery()
@@ -19,12 +44,24 @@ export default function SignUp(): JSX.Element {
   const history = useHistory()
   const { next = '/' } = useSearchParams()
   const [register, registerMutation] = useRegisterMutation()
+
+  const [{ password, passwordStrength, passwordSuggestions }, dispatch] = useReducer(
+    passwordReducer,
+    initState,
+  )
+
   return (
     <Layout query={query} forbidWhen={auth => auth.LOGGED_IN}>
-      <Form<'username' | 'email' | 'password' | 'name'>
+      <Form<'username' | 'email' | 'password' | 'confirm-password' | 'name'>
         onSubmit={async values => {
           try {
             setErrors(null)
+
+            if (values['confirm-password'] !== values.password) {
+              setErrors('passwords do not match')
+              return
+            }
+
             await register({
               variables: {
                 username: values.username,
@@ -39,6 +76,9 @@ export default function SignUp(): JSX.Element {
             history.push(next)
           } catch (err) {
             switch (getCodeFromError(err)) {
+            case 'MODAT':
+              setErrors('Email is required')
+              break
             case 'WEAKP':
               setErrors('Password is too weak or too common, please make it stronger')
               break
@@ -58,7 +98,7 @@ export default function SignUp(): JSX.Element {
               )
               break
             default:
-              setErrors(err)
+              setErrors(extractError(err))
             }
           }
         }}
@@ -67,12 +107,16 @@ export default function SignUp(): JSX.Element {
           <legend>sign up</legend>
           <div>
             <label>
-              <span>{'email*: '}</span>
-              <input type="email" name="email" />
+              <span>
+                email<span style={{ color: 'red' }}>*</span>:
+              </span>
+              <input type="email" name="email" autoCapitalize="false" required />
             </label>
           </div>
           <label>
-            <span>username*: </span>
+            <span>
+              username<span style={{ color: 'red' }}>*</span>:
+            </span>
             <input
               type="username"
               name="username"
@@ -82,15 +126,51 @@ export default function SignUp(): JSX.Element {
             />
           </label>
           <label>
-            <span>{'password*: '}</span>
-            <input type="password" name="password" required />
+            <span>
+              password<span style={{ color: 'red' }}>*</span>:
+            </span>
+            <div className="flex flex-col flex-grow" style={{ maxWidth: '67%' }}>
+              <input
+                type="password"
+                name="password"
+                onChange={ev => dispatch({ type: 'PASSWORD_CHANGED', payload: ev.target.value })}
+                value={password}
+                required
+                minLength={8}
+                className="flex-grow"
+              />
+              {password && (
+                <>
+                  <meter max="4" value={passwordStrength} className="flex-grow" style={{ height: '6px' }} />
+                  <div>
+                    {[strength[passwordStrength]]
+                      .concat(passwordSuggestions)
+                      .filter(Boolean)
+                      .map(str => (
+                        <div key={str}>{str}</div>
+                      ))}
+                  </div>
+                </>
+              )}
+            </div>
           </label>
           <label>
-            <span>{'your name: '}</span>
+            <span>
+              confirm password<span style={{ color: 'red' }}>*</span>:
+            </span>
+            <input
+              type="password"
+              name="confirm-password"
+              required
+              minLength={8}
+            />
+          </label>
+          <label>
+            <span>your name:</span>
             <input type="username" name="name" />
           </label>
           <div>
-            <input type="submit" value="register" />
+            <input type="submit" value="register" disabled={passwordStrength < 3} />
             {registerMutation.loading && <Loading />}
             {registerMutation.data && <Success />}
           </div>

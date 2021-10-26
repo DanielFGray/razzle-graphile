@@ -10,7 +10,7 @@
 
 create function app_private.really_create_user(
   username citext,
-  email text,
+  email citext,
   email_is_verified bool,
   name text,
   avatar_url text,
@@ -20,11 +20,12 @@ declare
   v_user app_public.users;
   v_username citext = username;
 begin
-  if password is not null then
-    perform app_private.assert_valid_password(password);
-  end if;
   if email is null then
     raise exception 'Email is required' using errcode = 'MODAT';
+  end if;
+
+  if password is not null then
+    perform app_private.assert_valid_password(password);
   end if;
 
   -- Insert the new user
@@ -50,7 +51,7 @@ begin
 end;
 $$ language plpgsql volatile set search_path to pg_catalog, public, pg_temp;
 
-comment on function app_private.really_create_user(username citext, email text, email_is_verified bool, name text, avatar_url text, password text) is
+comment on function app_private.really_create_user(username citext, email citext, email_is_verified bool, name text, avatar_url text, password text) is
   E'Creates a user account. All arguments are optional, it trusts the calling method to perform sanitisation.';
 
 /**********/

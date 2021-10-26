@@ -21,7 +21,7 @@ if (! SECRET) throw new Error('missing SECRET envrionment variable')
 const MAXIMUM_SESSION_DURATION_IN_MILLISECONDS =
   parseInt(process.env.MAXIMUM_SESSION_DURATION_IN_MILLISECONDS || '', 10) || 3 * DAY
 
-export function installSessionMiddleware(app: Express) {
+export function installSessionMiddleware(app: Express): void {
   /*
    * Using redis for session storage means the session can be shared across
    * multiple Node.js instances (and survives a server restart), see:
@@ -54,6 +54,7 @@ export function installSessionMiddleware(app: Express) {
   })
 
   const sessionMiddleware = session({
+    name: 'nodeapp.sid',
     rolling: true,
     saveUninitialized: false,
     resave: false,

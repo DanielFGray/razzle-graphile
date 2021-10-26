@@ -1,7 +1,7 @@
 import React from 'react'
-import { useHistory } from 'react-router-dom'
+import { Link, useHistory } from 'react-router-dom'
 import { useApolloClient } from '@apollo/client'
-import { Layout, Form, SocialLogin } from '@/components'
+import { Layout, Form, SocialLogin, RenderErrors } from '@/components'
 import { useLoginMutation, useSharedQuery } from '@/generated'
 import {
   extractError,
@@ -60,12 +60,13 @@ export default function SignIn(): JSX.Element {
           </label>
           <label>
             <span>{'password: '}</span>
-            <input type="password" name="password" placeholder="********" />
+            <input type="password" name="password" required placeholder="********" />
           </label>
           <div>
             <input type="submit" value="sign in" />
           </div>
-          {errors && <div className="error">{errors}</div>}
+          <RenderErrors errors={errors} />
+          {errors?.includes('Incorrect username or password') ? <Link to="/forgot">forgot your password?</Link> : null}
         </fieldset>
         <SocialLogin label="sign in" />
       </Form>

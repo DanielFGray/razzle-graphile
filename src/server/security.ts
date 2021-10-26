@@ -65,8 +65,11 @@ export const csrf: RequestHandler = (req, res, next) => {
   csrfProtection(req, res, next)
 }
 
-export const addSameOrigin: RequestHandler = (req, _res, next) => {
+export const addSameOrigin: RequestHandler = (req, res, next) => {
   req.isSameOrigin = ! req.get('origin') || req.get('origin') === ROOT_URL
+
+  // there's probably a better place to put this, but for the sake of simplicity...
+  res.setHeader('X-Powered-By', 'PostGraphile')
   next()
 }
 

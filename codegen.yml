@@ -4,6 +4,10 @@ config:
   scalars:
     UUID: string
     Username: string
+    Url: string
+    Tag: string
+    Datetime: string
+    BigInt: string
 generates:
   ./src/generated/index.ts:
     plugins:
@@ -15,6 +19,8 @@ generates:
       - typescript-resolvers
       - typescript-react-apollo
     config:
+      immutableTypes: true
+      enumsAsTypes: true
       namingConvention: change-case#pascalCase
       noGraphQLTag: true
       overwrite: true

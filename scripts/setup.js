@@ -25,37 +25,54 @@ async function main() {
       await pgPool.query('select true as "Connection test"')
       break
     } catch (e) {
-      if (e.code === "28P01") throw e
+      if (e.code === '28P01') throw e
       attempts++
       if (attempts >= 30) {
         console.log(`Database never came up, aborting :(`)
         process.exit(1)
       }
-      const delay = Math.floor(Math.min(
-        RECONNECT_MAX_DELAY,
-        RECONNECT_BASE_DELAY * Math.random() * 2 ** attempts
-      ))
+      const delay = Math.floor(
+        Math.min(RECONNECT_MAX_DELAY, RECONNECT_BASE_DELAY * Math.random() * 2 ** attempts),
+      )
       await sleep(delay)
     }
   }
 
   const client = await pgPool.connect()
+  console.log(`DROP DATABASE ${DATABASE_NAME}`)
+  console.log(`DROP ROLE ${DATABASE_VISITOR}`)
+  console.log(`DROP ROLE ${DATABASE_AUTHENTICATOR}`)
+  console.log(`DROP ROLE ${DATABASE_OWNER}`)
+
+  const { confirm } = await inquirer.prompt([
+    {
+      name: 'confirm',
+      message: 'press y to continue:',
+      choices: [
+        {
+          key: 'y',
+          name: 'yes',
+          value: true,
+        },
+      ],
+      prefix: '',
+    },
+  ])
+  if (confirm != 'y')process.exit()
+
   try {
     await client.query(`drop database if exists ${DATABASE_NAME}`)
-    console.log(`DROP DATABASE ${DATABASE_NAME}`)
     await client.query(`drop database if exists ${DATABASE_NAME}_shadow`)
     await client.query(`drop database if exists ${DATABASE_NAME}_test`)
     await client.query(`drop role if exists ${DATABASE_VISITOR}`)
-    console.log(`DROP ROLE ${DATABASE_VISITOR}`)
     await client.query(`drop role if exists ${DATABASE_AUTHENTICATOR}`)
-    console.log(`DROP ROLE ${DATABASE_AUTHENTICATOR}`)
     await client.query(`drop role if exists ${DATABASE_OWNER}`)
-    console.log(`DROP ROLE ${DATABASE_OWNER}`)
-
     await client.query(`create database ${DATABASE_NAME}`)
     console.log(`CREATE DATABASE ${DATABASE_NAME}`)
     await client.query(`create database ${DATABASE_NAME}_shadow`)
+    console.log(`CREATE DATABASE ${DATABASE_NAME}_shadow`)
     await client.query(`create database ${DATABASE_NAME}_test`)
+    console.log(`CREATE DATABASE ${DATABASE_NAME}_test`)
 
     /* Now to set up the database cleanly:
      * Ref: https://devcenter.heroku.com/articles/heroku-postgresql#connection-permissions
@@ -64,10 +81,14 @@ async function main() {
      * IMPORTANT: don't grant SUPERUSER in production, we only need this so we can load the watch fixtures!
      */
     if (process.env.NODE_ENV === 'production') {
-      await client.query(`create role ${DATABASE_OWNER} with login password '${DATABASE_OWNER_PASSWORD}' noinherit`)
+      await client.query(
+        `create role ${DATABASE_OWNER} with login password '${DATABASE_OWNER_PASSWORD}' noinherit`,
+      )
       console.log(`CREATE ROLE ${DATABASE_OWNER}`)
     } else {
-      await client.query(`create role ${DATABASE_OWNER} with login password '${DATABASE_OWNER_PASSWORD}' superuser`)
+      await client.query(
+        `create role ${DATABASE_OWNER} with login password '${DATABASE_OWNER_PASSWORD}' superuser`,
+      )
       console.log(`CREATE ROLE ${DATABASE_OWNER} SUPERUSER`)
     }
 
@@ -75,7 +96,9 @@ async function main() {
     console.log(`GRANT ${DATABASE_OWNER}`)
 
     // This is the no-access role that PostGraphile will run as by default
-    await client.query(`create role ${DATABASE_AUTHENTICATOR} with login password '${DATABASE_AUTHENTICATOR_PASSWORD}' noinherit`)
+    await client.query(
+      `create role ${DATABASE_AUTHENTICATOR} with login password '${DATABASE_AUTHENTICATOR_PASSWORD}' noinherit`,
+    )
     console.log(`CREATE ROLE ${DATABASE_AUTHENTICATOR}`)
 
     // This is the role that PostGraphile will switch to (from DATABASE_AUTHENTICATOR) during a GraphQL request

@@ -1,55 +1,47 @@
+const {projectName} = require("../../src/config")
 /** @typedef { import("./send_email").SendEmailPayload } SendEmailPayload */
 /** @typedef { import("graphile-worker").Task } Task */
-
-const projectName = require('../../package.json').name.replace(/[-_]/g, " ")
-
-/* For tracking account actions */
-
 /** @typedef {
-    | 'linked_account'
-    | 'unlinked_account'
-    | 'changed_password'
-    | 'reset_password'
-    | 'added_email'
-    | 'removed_email'
-  } AccountAction
- * @typedef {{
-      type: 'added_email'
-      user_id: string
-      current_user_id: string
-      extra1: string
-      extra2: string
-    } | {
-      type: 'removed_email'
-      user_id: string
-      current_user_id: string
-      extra1: string
-      extra2: string
-    }
-    | {
-      type: 'linked_account'
-      user_id: string
-      current_user_id: string
-      extra1: string
-      extra2: string
-    }
-    | {
-      type: 'unlinked_account'
-      user_id: string
-      current_user_id: string
-      extra1: string
-      extra2: string
-    }
-    | {
-      type: 'reset_password'
-      user_id: string
-      current_user_id: string
-    }
-    | {
-      type: 'change_password'
-      user_id: string
-      current_user_id: string
-    }} UserAuditPayload */
+| 'linked_account'
+| 'unlinked_account'
+| 'changed_password'
+| 'reset_password'
+| 'added_email'
+| 'removed_email'
+} AccountAction */
+/** @typedef {{
+  type: 'added_email'
+  user_id: string
+  current_user_id: string
+  extra1: string
+  extra2: string
+} | {
+  type: 'removed_email'
+  user_id: string
+  current_user_id: string
+  extra1: string
+  extra2: string
+} | {
+  type: 'linked_account'
+  user_id: string
+  current_user_id: string
+  extra1: string
+  extra2: string
+} | {
+  type: 'unlinked_account'
+  user_id: string
+  current_user_id: string
+  extra1: string
+  extra2: string
+} | {
+  type: 'reset_password'
+  user_id: string
+  current_user_id: string
+} | {
+  type: 'change_password'
+  user_id: string
+  current_user_id: string
+}} UserAuditPayload */
 
 /** @type {Task} */
 module.exports = async (rawPayload, { addJob, withPgClient, job }) => {
@@ -124,9 +116,8 @@ module.exports = async (rawPayload, { addJob, withPgClient, job }) => {
     is_primary: boolean
     created_at: Date
     updated_at: Date
-  }[]} userEmails
-   * @type {{ rows: userEmails }}
-   */
+  }[]} userEmails */
+  /** @type {{ rows: userEmails }} */
   const { rows: userEmails } = await withPgClient(client =>
     client.query(
       'select * from app_public.user_emails where user_id = $1 and is_verified is true order by id asc',

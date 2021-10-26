@@ -1,17 +1,12 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
-/** @typedef { import("graphile-worker").Task } Task */
 const { template: lodashTemplate } = require('lodash')
 const mjml2html = require('mjml')
 const chalk = require('chalk')
-const fs = require('node:fs/promises')
+const fs = require('fs/promises')
 const { htmlToText } = require('html-to-text')
 const nodemailer = require('nodemailer')
 const getTransport = require('../transport')
-
-const packageJson = require('../../package.json') // TODO: get rid of all this
-const projectName = packageJson.name.replace(/[-_]/g, " ")
-const fromEmail = packageJson.author.email
-const legalText = process.env.LEGAL_TEXT // FIXME
+const { projectName, fromEmail, legalText } = require('../../src/config')
 
 global.TEST_EMAILS = []
 
@@ -32,6 +27,7 @@ const isDev = process.env.NODE_ENV !== 'production'
   };
 }} SendEmailPayload */
 
+/** @typedef {import("graphile-worker").Task} Task */
 /** @type {Task} */
 module.exports = async inPayload => {
   /** @type {SendEmailPayload} */

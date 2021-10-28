@@ -15,11 +15,12 @@ import ConnectionFilterPlugin from 'postgraphile-plugin-connection-filter'
 import FulltextFilterPlugin from '@pyramation/postgraphile-plugin-fulltext-filter'
 import { OurGraphQLContext } from '@/types'
 
-const isDev = process.env.NODE_ENV !== 'production'
-console.log({ isDev })
 type postgraphile = ReturnType<typeof postgraphile>
 type PgConstraint = any
 type UUID = string
+
+const { ENABLE_GRAPHIQL, DATABASE_URL, DATABASE_VISITOR, NODE_ENV } = process.env
+const isDev = NODE_ENV !== 'production'
 
 const PrimaryKeyMutationsOnlyPlugin: Plugin = builder => {
   builder.hook(
@@ -91,7 +92,7 @@ export function getOptions({
     /* Add the pub/sub realtime provider */
     pluginHook: subscriptions ? makePluginHook([PgPubsub]) : undefined,
     /* This is so that PostGraphile installs the watch fixtures, it's also needed to enable live queries */
-    ownerConnectionString: process.env.ROOT_DATABASE_URL,
+    ownerConnectionString: DATABASE_URL,
 
     /* On production we still want to start even if the database isn't available.
      * On development, we want to deal nicely with issues in the database.
@@ -118,7 +119,7 @@ export function getOptions({
     setofFunctionsContainNulls: false,
 
     /* Enable GraphiQL in development */
-    graphiql: isDev || Boolean(process.env.ENABLE_GRAPHIQL),
+    graphiql: isDev || Boolean(ENABLE_GRAPHIQL),
     /* Use a fancier GraphiQL with `prettier` for formatting, and header editing. */
     enhanceGraphiql: true,
     /* Allow EXPLAIN in development (you can replace this with a callback function
@@ -241,7 +242,7 @@ export function getOptions({
       }
       return {
         /* Everyone uses the "visitor" role currently */
-        role: process.env.DATABASE_VISITOR,
+        role: DATABASE_VISITOR,
 
         /*
          * Note, though this says "jwt" it's not actually anything to do with

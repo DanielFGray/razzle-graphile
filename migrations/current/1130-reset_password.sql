@@ -50,7 +50,7 @@ begin
   end if;
 
   -- Not too many reset attempts, let's check the token
-  if v_user_secret.reset_password_token = reset_token then
+  if v_user_secret.reset_password_token != reset_token then
     -- Wrong token, bump all the attempt tracking figures
     update app_private.user_secrets
     set
